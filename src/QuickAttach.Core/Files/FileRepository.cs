@@ -4,15 +4,20 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using QuickAttach.Core.Config;
 
 namespace QuickAttach.Core.Files;
 
-/// <summary>Lists the newest matching files of the configured folders, with a timeout and a short cache.</summary>
+/// <summary>
+/// Lists the newest matching files of the configured folders, with a timeout and a short cache. An unreachable
+/// result is kept for longer and re-checked in the background, so the caller does not wait on every lookup.
+/// </summary>
 public sealed class FileRepository
 {
     private static readonly TimeSpan CacheWindow = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan UnreachableWindow = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan MinFileAge = TimeSpan.FromSeconds(1);
 
     private readonly TimeSpan _timeout;
@@ -21,6 +26,7 @@ public sealed class FileRepository
     private string? _cacheKey;
     private DateTime _cachedAt;
     private FileResult? _cached;
+    private int _probing;
 
     /// <param name="timeout">Maximum time for one lookup, 2 s by default.</param>
     /// <param name="utcNow">Clock returning UTC time, <see cref="DateTime.UtcNow"/> by default.</param>
@@ -41,8 +47,13 @@ public sealed class FileRepository
 
         lock (_lock)
         {
-            if (_cached != null && _cacheKey == key && now - _cachedAt < CacheWindow)
+            if (_cached != null && _cacheKey == key && now - _cachedAt < (_cached.Unreachable ? UnreachableWindow : CacheWindow))
             {
+                if (_cached.Unreachable)
+                {
+                    Probe(key, paths, config, now);
+                }
+
                 return _cached;
             }
         }
@@ -57,6 +68,32 @@ public sealed class FileRepository
         }
 
         return result;
+    }
+
+    /// <summary>Looks up the folders in the background, at most once at a time, and caches a reachable result.</summary>
+    private void Probe(string key, string[] paths, QuickAttachConfig config, DateTime now)
+    {
+        if (Interlocked.CompareExchange(ref _probing, 1, 0) != 0)
+        {
+            return;
+        }
+
+        Task.Run(() => Enumerate(paths, config, now)).ContinueWith(
+            probe =>
+            {
+                if (probe.Status == TaskStatus.RanToCompletion && !probe.Result.Unreachable)
+                {
+                    lock (_lock)
+                    {
+                        _cacheKey = key;
+                        _cachedAt = now;
+                        _cached = probe.Result;
+                    }
+                }
+
+                Interlocked.Exchange(ref _probing, 0);
+            },
+            TaskScheduler.Default);
     }
 
     private FileResult Search(string[] paths, QuickAttachConfig config, DateTime now)

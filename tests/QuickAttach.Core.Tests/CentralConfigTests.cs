@@ -90,6 +90,40 @@ public class CentralConfigTests
     }
 
     [Fact]
+    public void LoadCache_ReadsOnlyTheCache()
+    {
+        using var dir = new TempDir();
+        var cachePath = dir.Combine("config.cache.json");
+        File.WriteAllText(cachePath, Json);
+
+        var config = CentralConfig.LoadCache(cachePath);
+
+        Assert.True(config.FromCache);
+        Assert.Equal("/files", config.Defaults["FolderPath"]);
+        Assert.True(config.HasSameContent(CentralConfig.Parse(Json)));
+    }
+
+    [Fact]
+    public void LoadCache_MissingOrInvalid_ReturnsEmpty()
+    {
+        using var dir = new TempDir();
+        var cachePath = dir.Combine("config.cache.json");
+
+        Assert.Same(CentralConfig.Empty, CentralConfig.LoadCache(cachePath));
+
+        File.WriteAllText(cachePath, "{ not json");
+        Assert.Same(CentralConfig.Empty, CentralConfig.LoadCache(cachePath));
+    }
+
+    [Fact]
+    public void HasSameContent_ComparesJsonText()
+    {
+        Assert.True(CentralConfig.Parse(Json).HasSameContent(CentralConfig.Parse(Json)));
+        Assert.False(CentralConfig.Parse(Json).HasSameContent(CentralConfig.Parse("{}")));
+        Assert.False(CentralConfig.Parse(Json).HasSameContent(CentralConfig.Empty));
+    }
+
+    [Fact]
     public void ForUser_UnknownUser_ReturnsEmptyLayer()
     {
         var config = CentralConfig.Parse(Json);

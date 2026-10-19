@@ -129,32 +129,59 @@ public class FileRepositoryTests
     }
 
     [Fact]
-    public void GetLatest_UnreachablePath_ReturnsWithinTimeoutAndStaysCached()
+    public void GetLatest_UnreachablePath_ReturnsWithinTimeout()
     {
         using var dir = new TempDir();
-        var missing = dir.Combine("filer01", "files");
-        var now = Now;
-        var repository = Repository(() => now, TimeSpan.FromMilliseconds(200));
-        var config = new QuickAttachConfig { FolderPath = missing };
+        var repository = Repository(timeout: TimeSpan.FromMilliseconds(200));
 
         var stopwatch = Stopwatch.StartNew();
-        var result = repository.GetLatest(config);
+        var result = repository.GetLatest(new QuickAttachConfig { FolderPath = dir.Combine("filer01", "files") });
         stopwatch.Stop();
 
         Assert.True(result.Unreachable);
         Assert.Empty(result.Items);
         Assert.True(stopwatch.Elapsed < TimeSpan.FromMilliseconds(300), $"took {stopwatch.ElapsedMilliseconds} ms");
+    }
+
+    [Fact]
+    public void GetLatest_UnreachablePath_ReturnsCachedResultAndRecoversInBackground()
+    {
+        using var dir = new TempDir();
+        var missing = dir.Combine("filer01", "files");
+        var now = Now;
+        var repository = Repository(() => now);
+        var config = new QuickAttachConfig { FolderPath = missing };
+        Assert.True(repository.GetLatest(config).Unreachable);
 
         Directory.CreateDirectory(missing);
         File.WriteAllText(Path.Combine(missing, "report.pdf"), "x");
         File.SetLastWriteTimeUtc(Path.Combine(missing, "report.pdf"), Now.AddMinutes(-1));
-        now = Now.AddSeconds(4);
+        now = Now.AddSeconds(10);
+
+        // The first call returns the cached result and starts the background probe.
+        Assert.True(repository.GetLatest(config).Unreachable);
+        Assert.True(
+            SpinWait.SpinUntil(() => !repository.GetLatest(config).Unreachable, TimeSpan.FromSeconds(5)),
+            "background probe did not recover");
+        Assert.Equal(["report.pdf"], Names(repository.GetLatest(config)));
+    }
+
+    [Fact]
+    public void GetLatest_UnreachablePath_LooksUpAgainAfterWindow()
+    {
+        using var dir = new TempDir();
+        var missing = dir.Combine("filer01", "files");
+        var now = Now;
+        var repository = Repository(() => now);
+        var config = new QuickAttachConfig { FolderPath = missing };
         Assert.True(repository.GetLatest(config).Unreachable);
 
-        now = Now.AddSeconds(6);
-        var recovered = repository.GetLatest(config);
-        Assert.False(recovered.Unreachable);
-        Assert.Equal(["report.pdf"], Names(recovered));
+        Directory.CreateDirectory(missing);
+        File.WriteAllText(Path.Combine(missing, "report.pdf"), "x");
+        File.SetLastWriteTimeUtc(Path.Combine(missing, "report.pdf"), Now.AddMinutes(-1));
+        now = Now.AddSeconds(31);
+
+        Assert.Equal(["report.pdf"], Names(repository.GetLatest(config)));
     }
 
     [Fact]

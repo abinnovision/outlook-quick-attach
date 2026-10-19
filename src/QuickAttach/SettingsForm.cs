@@ -1,6 +1,7 @@
 using System;
 using System.Windows.Forms;
 using Microsoft.Win32;
+using QuickAttach.Core;
 using QuickAttach.Core.Config;
 
 namespace QuickAttach;
@@ -17,7 +18,7 @@ internal sealed class SettingsForm : Form
     public SettingsForm(QuickAttachConfig config, Func<string, bool> isLocked)
     {
         _isLocked = isLocked;
-        Text = "Quick Attach Settings";
+        Text = Strings.SettingsTitle;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         MinimizeBox = false;
@@ -34,15 +35,15 @@ internal sealed class SettingsForm : Form
         browse.Click += (_, _) => BrowseFolder();
         var ok = new Button { Text = "OK", DialogResult = DialogResult.OK };
         ok.Click += (_, _) => Save();
-        var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel };
+        var cancel = new Button { Text = Strings.Cancel, DialogResult = DialogResult.Cancel };
         AcceptButton = ok;
         CancelButton = cancel;
 
         var layout = new TableLayoutPanel { ColumnCount = 3, AutoSize = true, Padding = new Padding(10) };
-        AddRow(layout, "Folder", _folderPath, "FolderPath", browse);
-        AddRow(layout, "Group name", _groupLabel, "GroupLabel");
-        AddRow(layout, "Button label", _galleryLabel, "GalleryLabel");
-        AddRow(layout, "Number of files", _maxItems, "MaxItems");
+        AddRow(layout, Strings.Folder, _folderPath, "FolderPath", browse);
+        AddRow(layout, Strings.GroupName, _groupLabel, "GroupLabel");
+        AddRow(layout, Strings.ButtonLabel, _galleryLabel, "GalleryLabel");
+        AddRow(layout, Strings.NumberOfFiles, _maxItems, "MaxItems");
         var buttons = new FlowLayoutPanel { FlowDirection = FlowDirection.RightToLeft, AutoSize = true, Dock = DockStyle.Fill };
         buttons.Controls.AddRange(new Control[] { cancel, ok });
         layout.Controls.Add(buttons);

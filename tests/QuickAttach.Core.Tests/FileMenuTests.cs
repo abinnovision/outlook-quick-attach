@@ -21,7 +21,7 @@ public class FileMenuTests
         Assert.Equal("large", (string?)menu.Attribute("itemSize"));
         Assert.Equal(["btnFile0", "btnFile1", "btnOpenFolder", "btnSettings"], buttons.Select(b => (string?)b.Attribute("id")));
         Assert.Equal("a&&b <1>.pdf", (string?)buttons[0].Attribute("label"));
-        Assert.Equal("files\u00A0·\u00A007.03.\u00A009:05", (string?)buttons[0].Attribute("description"));
+        Assert.Equal(LabelFormatter.Describe(files.Items[0]), (string?)buttons[0].Attribute("description"));
         Assert.Equal("1", (string?)buttons[1].Attribute("tag"));
         Assert.Equal("GetFileImage", (string?)buttons[0].Attribute("getImage"));
         Assert.Equal("OnFileClick", (string?)buttons[0].Attribute("onAction"));
@@ -42,15 +42,15 @@ public class FileMenuTests
     }
 
     [Theory]
-    [InlineData(true, "btnUnreachable", FileMenu.UnreachableLabel)]
-    [InlineData(false, "btnEmpty", FileMenu.EmptyLabel)]
-    public void Build_ShowsDisabledPlaceholderWithoutFiles(bool unreachable, string id, string label)
+    [InlineData(true, "btnUnreachable")]
+    [InlineData(false, "btnEmpty")]
+    public void Build_ShowsDisabledPlaceholderWithoutFiles(bool unreachable, string id)
     {
         var menu = XElement.Parse(FileMenu.Build(new FileResult([], unreachable), showIcons: true, showSettings: false));
         var first = menu.Elements(Ns + "button").First();
 
         Assert.Equal(id, (string?)first.Attribute("id"));
-        Assert.Equal(label, (string?)first.Attribute("label"));
+        Assert.Equal(unreachable ? Strings.FolderNotReachable : Strings.NoFilesFound, (string?)first.Attribute("label"));
         Assert.Equal("false", (string?)first.Attribute("enabled"));
     }
 }

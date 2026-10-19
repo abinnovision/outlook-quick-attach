@@ -8,9 +8,6 @@ namespace QuickAttach.Core.Ribbon;
 /// <summary>Builds the dynamicMenu content: one button per file, then the folder and settings actions.</summary>
 public static class FileMenu
 {
-    public const string UnreachableLabel = "Folder not reachable";
-    public const string EmptyLabel = "No files found";
-
     private static readonly XNamespace Ns = "http://schemas.microsoft.com/office/2009/07/customui";
 
     public static string Build(FileResult files, bool showIcons, bool showSettings)
@@ -18,7 +15,7 @@ public static class FileMenu
         var menu = new XElement(Ns + "menu", new XAttribute("itemSize", "large"));
         if (files.Unreachable || files.Items.Count == 0)
         {
-            menu.Add(Button(files.Unreachable ? "btnUnreachable" : "btnEmpty", files.Unreachable ? UnreachableLabel : EmptyLabel, new XAttribute("enabled", "false")));
+            menu.Add(Button(files.Unreachable ? "btnUnreachable" : "btnEmpty", files.Unreachable ? Strings.FolderNotReachable : Strings.NoFilesFound, new XAttribute("enabled", "false")));
         }
         else
         {
@@ -33,10 +30,10 @@ public static class FileMenu
 
         menu.Add(new XElement(Ns + "menuSeparator", new XAttribute("id", "sepActions")));
         // Same icons as Outlook's "Browse This PC…" and File > Options.
-        menu.Add(Button("btnOpenFolder", "Open folder…", new XAttribute("imageMso", "FileOpen"), new XAttribute("onAction", "OnOpenFolder")));
+        menu.Add(Button("btnOpenFolder", Strings.OpenFolder, new XAttribute("imageMso", "FileOpen"), new XAttribute("onAction", "OnOpenFolder")));
         if (showSettings)
         {
-            menu.Add(Button("btnSettings", "Settings…", new XAttribute("imageMso", "ApplicationOptionsDialog"), new XAttribute("onAction", "OnSettings")));
+            menu.Add(Button("btnSettings", Strings.Settings, new XAttribute("imageMso", "ApplicationOptionsDialog"), new XAttribute("onAction", "OnSettings")));
         }
 
         return menu.ToString(SaveOptions.DisableFormatting);
