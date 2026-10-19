@@ -1,13 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Per-user package: everything goes to the user profile and HKCU, no elevation. -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
-  <Package Name="QuickAttach"
-           Manufacturer="abigroup"
+  <Package Name="Outlook Quick Attach"
+           Manufacturer="abi group GmbH"
            Version="$(var.Version)"
            UpgradeCode="1C41DDA8-63B8-4109-92A6-3AEA90C3D91E"
            Scope="perUser">
     <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A newer version of QuickAttach is already installed." />
     <MediaTemplate EmbedCab="yes" />
+
+    <Icon Id="QuickAttachIcon" SourceFile="$(sys.SOURCEFILEDIR)QuickAttach.ico" />
+    <Property Id="ARPPRODUCTICON" Value="QuickAttachIcon" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/abinnovision/outlook-quick-attach" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/abinnovision/outlook-quick-attach" />
+    <Property Id="ARPNOMODIFY" Value="1" />
 
     <!-- Remember the properties across upgrades and repairs; a value on the command line wins. -->
     <SetProperty Id="CMDLINE_CONFIGPATH" Value="[CONFIGPATH]" Before="AppSearch" Sequence="first" Condition="CONFIGPATH" />

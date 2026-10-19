@@ -1,6 +1,9 @@
 <Project>
   <PropertyGroup>
     <Version>0.1.0</Version>
+    <Company>abi group GmbH</Company>
+    <Product>Outlook Quick Attach</Product>
+    <Copyright>Copyright (c) 2026 abi group GmbH</Copyright>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
