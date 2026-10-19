@@ -131,10 +131,26 @@ Updates: copy a newer MSI to `update.MsiPath`. The updater installs it at the ne
 
 ## Builds
 
-- Stable releases: GitHub Releases, with `QuickAttach.msi`, `deploy/config.example.json` and `deploy/install.cmd`.
+- Stable releases: GitHub Releases, with `QuickAttach.msi`, `config.example.json`, `install.cmd` and `SHA256SUMS`.
 - Dev builds: every pull request, merge group and push to `main` uploads the MSI as the workflow artifact
   `QuickAttach-<version>`, versioned `<package.json version>.<run number>` (e.g. `0.1.0.57`). A newer dev build of the
   same release upgrades in place.
+
+Each build ships a `SHA256SUMS` file and a GitHub build provenance attestation.
+
+### Verify a download
+
+Compare the hash with the matching line in `SHA256SUMS`:
+
+```powershell
+(Get-FileHash QuickAttach.msi -Algorithm SHA256).Hash.ToLower()
+```
+
+Check that the file was built by this repository's CI ([GitHub CLI](https://cli.github.com/)):
+
+```sh
+gh attestation verify QuickAttach.msi -R abinnovision/outlook-quick-attach
+```
 
 ## Development
 

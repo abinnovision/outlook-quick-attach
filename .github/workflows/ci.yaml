@@ -32,6 +32,8 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: write # gh release upload
+      id-token: write # attestation signing
+      attestations: write
     env:
       RELEASES: ${{ needs.ci.outputs.releases }}
       SIGNING_CERT_PFX: ${{ secrets.SIGNING_CERT_PFX }}
@@ -113,12 +115,33 @@ jobs:
           & $env:SIGNTOOL sign /f $env:SIGNING_PFX /p $env:SIGNING_CERT_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 out/QuickAttach.msi
           Remove-Item $env:SIGNING_PFX
 
+      - name: Write checksums
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          $files = @('QuickAttach.msi')
+          if ($env:TAG) {
+            Copy-Item deploy/config.example.json, deploy/install.cmd -Destination out
+            $files += 'config.example.json', 'install.cmd'
+          }
+          $lines = $files | ForEach-Object { "$((Get-FileHash "out/$_" -Algorithm SHA256).Hash.ToLowerInvariant())  $_" }
+          [IO.File]::WriteAllText("$PWD/out/SHA256SUMS", (($lines -join "`n") + "`n"))
+          "### SHA256 checksums`n``````text`n$($lines -join "`n")`n``````" >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Attest build provenance
+        if: github.event.pull_request.head.repo.fork != true
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-checksums: out/SHA256SUMS
+
       - name: Upload artifact
         if: steps.version.outputs.tag == ''
         uses: actions/upload-artifact@v7
         with:
           name: QuickAttach-${{ steps.version.outputs.version }}
-          path: out/QuickAttach.msi
+          path: |
+            out/QuickAttach.msi
+            out/SHA256SUMS
           if-no-files-found: error
 
       - name: Upload release assets
@@ -126,4 +149,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.version.outputs.tag }}
-        run: gh release upload $env:TAG out/QuickAttach.msi deploy/config.example.json deploy/install.cmd --clobber
+        run: gh release upload $env:TAG out/QuickAttach.msi out/config.example.json out/install.cmd out/SHA256SUMS --clobber
