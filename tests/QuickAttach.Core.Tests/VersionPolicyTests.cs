@@ -27,6 +27,10 @@ public class VersionPolicyTests
     [InlineData("0.2.0", "0.1.9", false)]
     [InlineData("0.1.0", null, false)]
     [InlineData("0.1.0", "garbage", false)]
+    [InlineData("0.1.0", "0.1.0.57", true)]
+    [InlineData("0.1.0.57", "0.1.0.58", true)]
+    [InlineData("0.1.0.57", "0.1.1", true)]
+    [InlineData("0.1.1", "0.1.0.57", false)]
     public void IsUpdateAvailable_ComparesInstalledWithMsiVersion(string installed, string? msiVersion, bool expected)
     {
         Assert.Equal(expected, VersionPolicy.IsUpdateAvailable(Version.Parse(installed), msiVersion));

@@ -3,7 +3,10 @@
   <PropertyGroup>
     <OutputName>QuickAttach</OutputName>
     <InstallerPlatform>x64</InstallerPlatform>
-    <DefineConstants>$(DefineConstants);Version=$(Version)</DefineConstants>
+    <!-- MSI accepts 3- and 4-part versions; the assembly version always has 4 parts. -->
+    <AssemblyVersion Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('$(Version)', '^\d+\.\d+\.\d+$'))">$(Version).0</AssemblyVersion>
+    <AssemblyVersion Condition="'$(AssemblyVersion)' == ''">$(Version)</AssemblyVersion>
+    <DefineConstants>$(DefineConstants);Version=$(Version);AssemblyVersion=$(AssemblyVersion)</DefineConstants>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
   </PropertyGroup>
 

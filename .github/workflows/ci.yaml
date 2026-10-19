@@ -27,8 +27,7 @@ jobs:
   msi:
     name: MSI
     needs: ci
-    # Pull requests and merge groups get a test MSI; pushes only when this unit was released.
-    if: github.event_name != 'push' || contains(fromJSON(needs.ci.outputs.releases || '[]').*.id, 'outlook-quick-attach')
+    # Releases upload a stable MSI to the GitHub release; every other run uploads a dev MSI as a workflow artifact.
     runs-on: windows-latest
     timeout-minutes: 20
     permissions:
@@ -41,21 +40,30 @@ jobs:
       run:
         shell: pwsh
     steps:
-      - name: Resolve version
-        id: version
+      - name: Resolve release
+        id: release
         run: |
           $release = if ($env:RELEASES) { $env:RELEASES | ConvertFrom-Json | Where-Object { $_.id -eq 'outlook-quick-attach' } | Select-Object -First 1 }
           if ($release) {
             "version=$($release.version)" >> $env:GITHUB_OUTPUT
             "tag=$($release.tag)" >> $env:GITHUB_OUTPUT
             "ref=$($release.releaseSha)" >> $env:GITHUB_OUTPUT
-          } else {
-            "version=0.0.$env:GITHUB_RUN_NUMBER" >> $env:GITHUB_OUTPUT
           }
 
       - uses: actions/checkout@v7
         with:
-          ref: ${{ steps.version.outputs.ref }}
+          ref: ${{ steps.release.outputs.ref }}
+
+      - name: Resolve version
+        id: version
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          # Dev builds: <package.json version>.<run number>, e.g. 0.1.0.57.
+          $version = if ($env:RELEASE_VERSION) { $env:RELEASE_VERSION } else { "$((Get-Content package.json -Raw | ConvertFrom-Json).version).$env:GITHUB_RUN_NUMBER" }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "tag=$env:TAG" >> $env:GITHUB_OUTPUT
 
       - name: Read dotnet version
         id: dotnet

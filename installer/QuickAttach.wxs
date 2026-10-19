@@ -6,7 +6,7 @@
            Version="$(var.Version)"
            UpgradeCode="1C41DDA8-63B8-4109-92A6-3AEA90C3D91E"
            Scope="perUser">
-    <MajorUpgrade DowngradeErrorMessage="A newer version of QuickAttach is already installed." />
+    <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A newer version of QuickAttach is already installed." />
     <MediaTemplate EmbedCab="yes" />
 
     <!-- Remember the properties across upgrades and repairs; a value on the command line wins. -->
@@ -70,7 +70,7 @@
             <RegistryValue Type="string" Value="mscoree.dll" />
             <RegistryValue Name="ThreadingModel" Type="string" Value="Both" />
             <RegistryValue Name="Class" Type="string" Value="QuickAttach.Connect" />
-            <RegistryValue Name="Assembly" Type="string" Value="QuickAttach, Version=$(var.Version).0, Culture=neutral, PublicKeyToken=null" />
+            <RegistryValue Name="Assembly" Type="string" Value="QuickAttach, Version=$(var.AssemblyVersion), Culture=neutral, PublicKeyToken=null" />
             <RegistryValue Name="RuntimeVersion" Type="string" Value="v4.0.30319" />
             <RegistryValue Name="CodeBase" Type="string" Value="file:///[INSTALLFOLDER]QuickAttach.dll" />
           </RegistryKey>

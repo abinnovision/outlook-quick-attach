@@ -34,8 +34,12 @@ contains everything except the installer. The MSI needs Windows:
 dotnet build installer\QuickAttach.Installer.wixproj -c Release -p:Version=0.1.0
 ```
 
-CI builds the MSI on every pull request (version `0.0.<run number>`) and attaches it, together with
-`deploy/config.example.json` and `deploy/install.cmd`, to each GitHub release.
+## Builds
+
+- Stable releases: GitHub Releases, with `QuickAttach.msi`, `deploy/config.example.json` and `deploy/install.cmd`.
+- Dev builds: every pull request, merge group and push to `main` uploads the MSI as the workflow artifact
+  `QuickAttach-<version>`, versioned `<package.json version>.<run number>` (e.g. `0.1.0.57`). A newer dev build of the
+  same release upgrades in place.
 
 ## Install
 
