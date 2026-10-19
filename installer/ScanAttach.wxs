@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Per-user package: everything goes to the user profile and HKCU, no elevation. -->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="ScanAttach"
+           Manufacturer="abi group GmbH"
+           Version="$(var.Version)"
+           UpgradeCode="1C41DDA8-63B8-4109-92A6-3AEA90C3D91E"
+           Scope="perUser">
+    <MajorUpgrade DowngradeErrorMessage="Eine neuere Version von ScanAttach ist bereits installiert." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Remember CONFIGPATH across upgrades and repairs; a value on the command line wins. -->
+    <SetProperty Id="CMDLINE_CONFIGPATH" Value="[CONFIGPATH]" Before="AppSearch" Sequence="first" Condition="CONFIGPATH" />
+    <Property Id="CONFIGPATH">
+      <RegistrySearch Id="RememberedConfigPath" Root="HKCU" Key="Software\abi\ScanAttach" Name="ConfigPath" Type="raw" />
+    </Property>
+    <SetProperty Id="CONFIGPATH" Value="[CMDLINE_CONFIGPATH]" After="AppSearch" Sequence="first" Condition="CMDLINE_CONFIGPATH" />
+
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="ProgramsFolder" Name="Programs">
+        <Directory Id="AbiFolder" Name="abi">
+          <Directory Id="INSTALLFOLDER" Name="ScanAttach" />
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+
+    <Feature Id="Main">
+      <ComponentGroupRef Id="AddinComponents" />
+    </Feature>
+  </Package>
+
+  <Fragment>
+    <ComponentGroup Id="AddinComponents" Directory="INSTALLFOLDER">
+      <Component Id="AddinFiles" Guid="39BDBFBD-408B-4D4F-B7F9-A36DBD6B6D66">
+        <RegistryValue Root="HKCU" Key="Software\abi\ScanAttach" Name="InstalledVersion" Type="string" Value="[ProductVersion]" KeyPath="yes" />
+        <File Id="ScanAttachDll" Source="$(var.ScanAttach.TargetDir)ScanAttach.dll" />
+        <File Id="ScanAttachCoreDll" Source="$(var.ScanAttach.TargetDir)ScanAttach.Core.dll" />
+        <File Id="NewtonsoftJsonDll" Source="$(var.ScanAttach.TargetDir)Newtonsoft.Json.dll" />
+        <File Id="UpdaterExe" Source="$(var.ScanAttach.Updater.TargetDir)ScanAttach.Updater.exe" />
+        <File Id="UpdaterConfig" Source="$(var.ScanAttach.Updater.TargetDir)ScanAttach.Updater.exe.config" />
+        <RemoveFolder Id="RemoveInstallFolder" Directory="INSTALLFOLDER" On="uninstall" />
+        <RemoveFolder Id="RemoveAbiFolder" Directory="AbiFolder" On="uninstall" />
+        <RemoveFolder Id="RemoveProgramsFolder" Directory="ProgramsFolder" On="uninstall" />
+      </Component>
+
+      <!-- COM registration of ScanAttach.Connect in HKCU (what regasm /codebase writes to HKLM). -->
+      <Component Id="ComRegistration">
+        <RegistryKey Root="HKCU" Key="Software\Classes\CLSID\{02AC128C-3671-4CD8-88FB-B95021C55B0F}">
+          <RegistryValue Type="string" Value="ScanAttach.Connect" KeyPath="yes" />
+          <RegistryValue Key="ProgId" Type="string" Value="Abi.ScanAttach" />
+          <RegistryKey Key="InprocServer32">
+            <RegistryValue Type="string" Value="mscoree.dll" />
+            <RegistryValue Name="ThreadingModel" Type="string" Value="Both" />
+            <RegistryValue Name="Class" Type="string" Value="ScanAttach.Connect" />
+            <RegistryValue Name="Assembly" Type="string" Value="ScanAttach, Version=$(var.Version).0, Culture=neutral, PublicKeyToken=null" />
+            <RegistryValue Name="RuntimeVersion" Type="string" Value="v4.0.30319" />
+            <RegistryValue Name="CodeBase" Type="string" Value="file:///[INSTALLFOLDER]ScanAttach.dll" />
+          </RegistryKey>
+        </RegistryKey>
+        <RegistryKey Root="HKCU" Key="Software\Classes\Abi.ScanAttach">
+          <RegistryValue Type="string" Value="ScanAttach.Connect" />
+          <RegistryValue Key="CLSID" Type="string" Value="{02AC128C-3671-4CD8-88FB-B95021C55B0F}" />
+        </RegistryKey>
+      </Component>
+
+      <Component Id="OutlookAddin">
+        <RegistryKey Root="HKCU" Key="Software\Microsoft\Office\Outlook\Addins\Abi.ScanAttach">
+          <RegistryValue Name="FriendlyName" Type="string" Value="ScanAttach" KeyPath="yes" />
+          <RegistryValue Name="Description" Type="string" Value="Letzte Scans anhängen" />
+          <RegistryValue Name="LoadBehavior" Type="integer" Value="3" />
+        </RegistryKey>
+        <RegistryValue Root="HKCU" Key="Software\Microsoft\Office\16.0\Outlook\Resiliency\DoNotDisableAddinList" Name="Abi.ScanAttach" Type="integer" Value="1" />
+      </Component>
+
+      <Component Id="UpdaterRunKey">
+        <RegistryValue Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Run" Name="ScanAttachUpdater" Type="string" Value="&quot;[INSTALLFOLDER]ScanAttach.Updater.exe&quot;" KeyPath="yes" />
+      </Component>
+
+      <Component Id="ConfigPathValue" Condition="CONFIGPATH">
+        <RegistryValue Root="HKCU" Key="Software\abi\ScanAttach" Name="ConfigPath" Type="string" Value="[CONFIGPATH]" KeyPath="yes" />
+      </Component>
+
+      <!-- Optional fallback values when no central config.json is used. -->
+      <Component Id="InstallScanPath" Condition="SCANPATH">
+        <RegistryValue Root="HKCU" Key="Software\abi\ScanAttach\Install" Name="ScanPath" Type="expandable" Value="[SCANPATH]" KeyPath="yes" />
+      </Component>
+      <Component Id="InstallGroupLabel" Condition="GROUPLABEL">
+        <RegistryValue Root="HKCU" Key="Software\abi\ScanAttach\Install" Name="GroupLabel" Type="string" Value="[GROUPLABEL]" KeyPath="yes" />
+      </Component>
+      <Component Id="InstallGalleryLabel" Condition="GALLERYLABEL">
+        <RegistryValue Root="HKCU" Key="Software\abi\ScanAttach\Install" Name="GalleryLabel" Type="string" Value="[GALLERYLABEL]" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+</Wix>

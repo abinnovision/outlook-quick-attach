@@ -1,0 +1,15 @@
+<Project Sdk="WixToolset.Sdk/6.0.2">
+
+  <PropertyGroup>
+    <OutputName>ScanAttach</OutputName>
+    <InstallerPlatform>x64</InstallerPlatform>
+    <DefineConstants>$(DefineConstants);Version=$(Version)</DefineConstants>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\src\ScanAttach\ScanAttach.csproj" />
+    <ProjectReference Include="..\src\ScanAttach.Updater\ScanAttach.Updater.csproj" />
+  </ItemGroup>
+
+</Project>
