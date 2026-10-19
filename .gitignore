@@ -1,6 +1,7 @@
 # Secrets
-vm/*_ed25519
+vm/*_ed25519*
 vm/*.local.*
+vm/build/
 
 # Local and agent state
 .local/
