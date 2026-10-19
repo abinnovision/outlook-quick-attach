@@ -10,17 +10,17 @@ namespace QuickAttach;
 public interface IDTExtensibility2
 {
     [DispId(1)]
-    void OnConnection([MarshalAs(UnmanagedType.IDispatch)] object application, int connectMode, [MarshalAs(UnmanagedType.IDispatch)] object addInInst, ref Array custom);
+    void OnConnection([MarshalAs(UnmanagedType.IDispatch)] object application, int connectMode, [MarshalAs(UnmanagedType.IDispatch)] object addInInst, [In, MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_VARIANT)] ref Array custom);
 
     [DispId(2)]
-    void OnDisconnection(int removeMode, ref Array custom);
+    void OnDisconnection(int removeMode, [In, MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_VARIANT)] ref Array custom);
 
     [DispId(3)]
-    void OnAddInsUpdate(ref Array custom);
+    void OnAddInsUpdate([In, MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_VARIANT)] ref Array custom);
 
     [DispId(4)]
-    void OnStartupComplete(ref Array custom);
+    void OnStartupComplete([In, MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_VARIANT)] ref Array custom);
 
     [DispId(5)]
-    void OnBeginShutdown(ref Array custom);
+    void OnBeginShutdown([In, MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_VARIANT)] ref Array custom);
 }
