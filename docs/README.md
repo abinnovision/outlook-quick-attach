@@ -37,6 +37,9 @@ CI builds the MSI on every pull request (version `0.0.<run number>`) and attache
 
 ## Install
 
+Only 64-bit Outlook is supported: the MSI is an x64 package and writes the COM registration to the 64-bit registry
+view.
+
 Copy `ScanAttach.msi`, `config.json` and `install.cmd` to a share such as `\\filer01\it$\scanattach\`
 (users read, IT writes). Users run `install.cmd`, or a logon script calls it. It skips the install when the same or a
 newer version is already installed, and passes the `config.json` next to it as `CONFIGPATH`. No admin rights are
