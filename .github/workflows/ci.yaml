@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  merge_group:
+    types: [checks_requested]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event.pull_request.number || github.event.merge_group.id || 'main' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
+
+permissions: {}
+
+jobs:
+  ci:
+    name: CI
+    uses: abinnovision/actions/.github/workflows/workflow.yaml@app-stack-v2
+    permissions:
+      contents: read
+      packages: read
+      actions: write
+      id-token: write
+
+  # msi: Windows job that builds the add-in shell and MSI, added with the installer.
