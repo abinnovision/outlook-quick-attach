@@ -1,0 +1,20 @@
+# Secrets
+vm/*_ed25519
+vm/*.local.*
+
+# Local and agent state
+.local/
+.omc/
+.idea/
+
+# .NET
+bin/
+obj/
+*.msi
+*.wixpdb
+
+# Node / Yarn
+node_modules/
+.yarn/*
+!.yarn/releases
+!.yarn/plugins
