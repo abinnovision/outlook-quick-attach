@@ -1,18 +1,18 @@
 {
   "defaults": {
-    "ScanPath": "\\\\filer01\\scans\\%USERNAME%",
-    "GroupLabel": "Scanner",
-    "GalleryLabel": "Meine Scans",
+    "FolderPath": "\\\\filer01\\ablage\\%USERNAME%",
+    "GroupLabel": "Ablage",
+    "GalleryLabel": "Meine Dateien",
     "MaxItems": 12,
     "MaxAgeDays": 7,
     "FileFilter": "*.pdf;*.jpg",
     "AllowUserOverride": false
   },
   "users": {
-    "mmueller": { "ScanPath": "\\\\filer01\\scans\\buchhaltung" }
+    "mmueller": { "FolderPath": "\\\\filer01\\ablage\\buchhaltung" }
   },
   "update": {
-    "MsiPath": "\\\\filer01\\it$\\scanattach\\ScanAttach.msi",
+    "MsiPath": "\\\\filer01\\it$\\quickattach\\QuickAttach.msi",
     "MinVersion": "0.1.0"
   }
 }

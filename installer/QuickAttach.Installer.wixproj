@@ -1,0 +1,15 @@
+<Project Sdk="WixToolset.Sdk/6.0.2">
+
+  <PropertyGroup>
+    <OutputName>QuickAttach</OutputName>
+    <InstallerPlatform>x64</InstallerPlatform>
+    <DefineConstants>$(DefineConstants);Version=$(Version)</DefineConstants>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\src\QuickAttach\QuickAttach.csproj" />
+    <ProjectReference Include="..\src\QuickAttach.Updater\QuickAttach.Updater.csproj" />
+  </ItemGroup>
+
+</Project>

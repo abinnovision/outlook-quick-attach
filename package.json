@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "dotnet build ScanAttach.sln -c Release",
-    "check": "dotnet format ScanAttach.sln --verify-no-changes",
-    "fix": "dotnet format ScanAttach.sln",
-    "test-unit": "dotnet test tests/ScanAttach.Core.Tests -c Release"
+    "build": "dotnet build QuickAttach.sln -c Release",
+    "check": "dotnet format QuickAttach.sln --verify-no-changes",
+    "fix": "dotnet format QuickAttach.sln",
+    "test-unit": "dotnet test tests/QuickAttach.Core.Tests -c Release"
   },
   "commitlint": {
     "extends": [

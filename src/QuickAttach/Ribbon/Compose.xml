@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<customUI xmlns="http://schemas.microsoft.com/office/2009/07/customui" onLoad="OnRibbonLoad">
+  <ribbon>
+    <tabs>
+      <!-- {TabIdMso} is TabNewMailMessage or TabInsert, chosen by TargetTab at startup. -->
+      <tab idMso="{TabIdMso}">
+        <group id="grpQuickAttach" getLabel="GetGroupLabel" insertAfterMso="GroupInclude">
+          <gallery id="galFiles"
+                   getLabel="GetGalleryLabel"
+                   getScreentip="GetGalleryScreentip"
+                   getEnabled="GetGalleryEnabled"
+                   size="large" imageMso="AttachFile" columns="1"
+                   showItemImage="true" invalidateContentOnDrop="true"
+                   getItemCount="GetItemCount" getItemLabel="GetItemLabel"
+                   getItemScreentip="GetItemScreentip" getItemImage="GetItemImage"
+                   onAction="OnFileSelected">
+            <button id="btnOpenFolder" label="Ordner öffnen…" onAction="OnOpenFolder"/>
+            <button id="btnSettings" label="Einstellungen…" onAction="OnSettings" getVisible="GetSettingsVisible"/>
+          </gallery>
+        </group>
+      </tab>
+    </tabs>
+  </ribbon>
+</customUI>

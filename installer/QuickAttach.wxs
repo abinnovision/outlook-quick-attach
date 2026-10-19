@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Per-user package: everything goes to the user profile and HKCU, no elevation. -->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="QuickAttach"
+           Manufacturer="abigroup"
+           Version="$(var.Version)"
+           UpgradeCode="1C41DDA8-63B8-4109-92A6-3AEA90C3D91E"
+           Scope="perUser">
+    <MajorUpgrade DowngradeErrorMessage="Eine neuere Version von QuickAttach ist bereits installiert." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Remember the properties across upgrades and repairs; a value on the command line wins. -->
+    <SetProperty Id="CMDLINE_CONFIGPATH" Value="[CONFIGPATH]" Before="AppSearch" Sequence="first" Condition="CONFIGPATH" />
+    <Property Id="CONFIGPATH">
+      <RegistrySearch Id="RememberedConfigPath" Root="HKCU" Key="Software\abigroup\QuickAttach" Name="ConfigPath" Type="raw" />
+    </Property>
+    <SetProperty Id="CONFIGPATH" Value="[CMDLINE_CONFIGPATH]" After="AppSearch" Sequence="first" Condition="CMDLINE_CONFIGPATH" />
+
+    <SetProperty Id="CMDLINE_FOLDERPATH" Value="[FOLDERPATH]" Before="AppSearch" Sequence="first" Condition="FOLDERPATH" />
+    <Property Id="FOLDERPATH">
+      <RegistrySearch Id="RememberedFolderPath" Root="HKCU" Key="Software\abigroup\QuickAttach\Install" Name="FolderPath" Type="raw" />
+    </Property>
+    <SetProperty Id="FOLDERPATH" Value="[CMDLINE_FOLDERPATH]" After="AppSearch" Sequence="first" Condition="CMDLINE_FOLDERPATH" />
+
+    <SetProperty Id="CMDLINE_GROUPLABEL" Value="[GROUPLABEL]" Before="AppSearch" Sequence="first" Condition="GROUPLABEL" />
+    <Property Id="GROUPLABEL">
+      <RegistrySearch Id="RememberedGroupLabel" Root="HKCU" Key="Software\abigroup\QuickAttach\Install" Name="GroupLabel" Type="raw" />
+    </Property>
+    <SetProperty Id="GROUPLABEL" Value="[CMDLINE_GROUPLABEL]" After="AppSearch" Sequence="first" Condition="CMDLINE_GROUPLABEL" />
+
+    <SetProperty Id="CMDLINE_GALLERYLABEL" Value="[GALLERYLABEL]" Before="AppSearch" Sequence="first" Condition="GALLERYLABEL" />
+    <Property Id="GALLERYLABEL">
+      <RegistrySearch Id="RememberedGalleryLabel" Root="HKCU" Key="Software\abigroup\QuickAttach\Install" Name="GalleryLabel" Type="raw" />
+    </Property>
+    <SetProperty Id="GALLERYLABEL" Value="[CMDLINE_GALLERYLABEL]" After="AppSearch" Sequence="first" Condition="CMDLINE_GALLERYLABEL" />
+
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="ProgramsFolder" Name="Programs">
+        <Directory Id="AbigroupFolder" Name="abigroup">
+          <Directory Id="INSTALLFOLDER" Name="QuickAttach" />
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+
+    <Feature Id="Main">
+      <ComponentGroupRef Id="AddinComponents" />
+    </Feature>
+  </Package>
+
+  <Fragment>
+    <ComponentGroup Id="AddinComponents" Directory="INSTALLFOLDER">
+      <Component Id="AddinFiles" Guid="39BDBFBD-408B-4D4F-B7F9-A36DBD6B6D66">
+        <RegistryValue Root="HKCU" Key="Software\abigroup\QuickAttach" Name="InstalledVersion" Type="string" Value="[ProductVersion]" KeyPath="yes" />
+        <File Id="QuickAttachDll" Source="$(var.QuickAttach.TargetDir)QuickAttach.dll" />
+        <File Id="QuickAttachCoreDll" Source="$(var.QuickAttach.TargetDir)QuickAttach.Core.dll" />
+        <File Id="NewtonsoftJsonDll" Source="$(var.QuickAttach.TargetDir)Newtonsoft.Json.dll" />
+        <File Id="UpdaterExe" Source="$(var.QuickAttach.Updater.TargetDir)QuickAttach.Updater.exe" />
+        <File Id="UpdaterConfig" Source="$(var.QuickAttach.Updater.TargetDir)QuickAttach.Updater.exe.config" />
+        <RemoveFolder Id="RemoveInstallFolder" Directory="INSTALLFOLDER" On="uninstall" />
+        <RemoveFolder Id="RemoveAbigroupFolder" Directory="AbigroupFolder" On="uninstall" />
+        <RemoveFolder Id="RemoveProgramsFolder" Directory="ProgramsFolder" On="uninstall" />
+      </Component>
+
+      <!-- COM registration of QuickAttach.Connect in HKCU (what regasm /codebase writes to HKLM). -->
+      <Component Id="ComRegistration">
+        <RegistryKey Root="HKCU" Key="Software\Classes\CLSID\{02AC128C-3671-4CD8-88FB-B95021C55B0F}">
+          <RegistryValue Type="string" Value="QuickAttach.Connect" KeyPath="yes" />
+          <RegistryValue Key="ProgId" Type="string" Value="Abigroup.QuickAttach" />
+          <RegistryKey Key="InprocServer32">
+            <RegistryValue Type="string" Value="mscoree.dll" />
+            <RegistryValue Name="ThreadingModel" Type="string" Value="Both" />
+            <RegistryValue Name="Class" Type="string" Value="QuickAttach.Connect" />
+            <RegistryValue Name="Assembly" Type="string" Value="QuickAttach, Version=$(var.Version).0, Culture=neutral, PublicKeyToken=null" />
+            <RegistryValue Name="RuntimeVersion" Type="string" Value="v4.0.30319" />
+            <RegistryValue Name="CodeBase" Type="string" Value="file:///[INSTALLFOLDER]QuickAttach.dll" />
+          </RegistryKey>
+        </RegistryKey>
+        <RegistryKey Root="HKCU" Key="Software\Classes\Abigroup.QuickAttach">
+          <RegistryValue Type="string" Value="QuickAttach.Connect" />
+          <RegistryValue Key="CLSID" Type="string" Value="{02AC128C-3671-4CD8-88FB-B95021C55B0F}" />
+        </RegistryKey>
+      </Component>
+
+      <Component Id="OutlookAddin">
+        <RegistryKey Root="HKCU" Key="Software\Microsoft\Office\Outlook\Addins\Abigroup.QuickAttach">
+          <RegistryValue Name="FriendlyName" Type="string" Value="QuickAttach" KeyPath="yes" />
+          <RegistryValue Name="Description" Type="string" Value="Dateien aus einem Ordner schnell anhängen" />
+          <RegistryValue Name="LoadBehavior" Type="integer" Value="3" />
+        </RegistryKey>
+        <RegistryValue Root="HKCU" Key="Software\Microsoft\Office\16.0\Outlook\Resiliency\DoNotDisableAddinList" Name="Abigroup.QuickAttach" Type="integer" Value="1" />
+      </Component>
+
+      <Component Id="UpdaterRunKey">
+        <RegistryValue Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Run" Name="QuickAttachUpdater" Type="string" Value="&quot;[INSTALLFOLDER]QuickAttach.Updater.exe&quot;" KeyPath="yes" />
+      </Component>
+
+      <Component Id="ConfigPathValue" Condition="CONFIGPATH">
+        <RegistryValue Root="HKCU" Key="Software\abigroup\QuickAttach" Name="ConfigPath" Type="string" Value="[CONFIGPATH]" KeyPath="yes" />
+      </Component>
+
+      <!-- Optional fallback values when no central config.json is used. -->
+      <!-- REG_SZ: a raw RegistrySearch would return REG_EXPAND_SZ with a "#%" prefix. The add-in expands variables itself. -->
+      <Component Id="InstallFolderPath" Condition="FOLDERPATH">
+        <RegistryValue Root="HKCU" Key="Software\abigroup\QuickAttach\Install" Name="FolderPath" Type="string" Value="[FOLDERPATH]" KeyPath="yes" />
+      </Component>
+      <Component Id="InstallGroupLabel" Condition="GROUPLABEL">
+        <RegistryValue Root="HKCU" Key="Software\abigroup\QuickAttach\Install" Name="GroupLabel" Type="string" Value="[GROUPLABEL]" KeyPath="yes" />
+      </Component>
+      <Component Id="InstallGalleryLabel" Condition="GALLERYLABEL">
+        <RegistryValue Root="HKCU" Key="Software\abigroup\QuickAttach\Install" Name="GalleryLabel" Type="string" Value="[GALLERYLABEL]" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+</Wix>

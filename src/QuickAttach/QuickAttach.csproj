@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Office.Interop.Outlook" Version="15.0.4797.1004" ExcludeAssets="runtime" />
+    <PackageReference Include="MicrosoftOfficeCore" Version="15.0.0" ExcludeAssets="runtime" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\QuickAttach.Core\QuickAttach.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Ribbon\*.xml" LogicalName="QuickAttach.Ribbon.%(Filename).xml" />
+  </ItemGroup>
+
+  <!-- PackageReference does not set EmbedInteropTypes, so the PIAs are embedded here. -->
+  <Target Name="EmbedOfficeInteropTypes" AfterTargets="ResolveAssemblyReferences">
+    <ItemGroup>
+      <ReferencePath Condition="'%(Filename)' == 'Office' Or '%(Filename)' == 'Microsoft.Office.Interop.Outlook'">
+        <EmbedInteropTypes>true</EmbedInteropTypes>
+      </ReferencePath>
+    </ItemGroup>
+  </Target>
+
+</Project>
