@@ -24,4 +24,98 @@ jobs:
       actions: write
       id-token: write
 
-  # msi: Windows job that builds the add-in shell and MSI, added with the installer.
+  msi:
+    name: MSI
+    needs: ci
+    # Pull requests and merge groups get a test MSI; pushes only when this unit was released.
+    if: github.event_name != 'push' || contains(needs.ci.outputs.releases, '"outlook-quick-attach"')
+    runs-on: windows-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write # gh release upload
+    env:
+      RELEASES: ${{ needs.ci.outputs.releases }}
+      SIGNING_CERT_PFX: ${{ secrets.SIGNING_CERT_PFX }}
+      SIGNING_CERT_PASSWORD: ${{ secrets.SIGNING_CERT_PASSWORD }}
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Resolve version
+        id: version
+        run: |
+          $release = if ($env:RELEASES) { $env:RELEASES | ConvertFrom-Json | Where-Object { $_.id -eq 'outlook-quick-attach' } | Select-Object -First 1 }
+          if ($release) {
+            "version=$($release.version)" >> $env:GITHUB_OUTPUT
+            "tag=$($release.tag)" >> $env:GITHUB_OUTPUT
+            "ref=$($release.releaseSha)" >> $env:GITHUB_OUTPUT
+          } else {
+            "version=0.0.$env:GITHUB_RUN_NUMBER" >> $env:GITHUB_OUTPUT
+          }
+
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.version.outputs.ref }}
+
+      - name: Read dotnet version
+        id: dotnet
+        run: |
+          $version = (Select-String -Path .tool-versions -Pattern '^dotnet\s+(\S+)').Matches[0].Groups[1].Value
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ steps.dotnet.outputs.version }}
+
+      - name: Build add-in and updater
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          dotnet build src/ScanAttach/ScanAttach.csproj -c Release -p:Version=$env:VERSION
+          dotnet build src/ScanAttach.Updater/ScanAttach.Updater.csproj -c Release -p:Version=$env:VERSION
+
+      - name: Prepare signing
+        if: env.SIGNING_CERT_PFX != ''
+        run: |
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName | Select-Object -Last 1
+          $pfx = Join-Path $env:RUNNER_TEMP 'signing.pfx'
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:SIGNING_CERT_PFX))
+          "SIGNTOOL=$($signtool.FullName)" >> $env:GITHUB_ENV
+          "SIGNING_PFX=$pfx" >> $env:GITHUB_ENV
+
+      - name: Sign binaries
+        if: env.SIGNING_CERT_PFX != ''
+        run: |
+          & $env:SIGNTOOL sign /f $env:SIGNING_PFX /p $env:SIGNING_CERT_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 `
+            src/ScanAttach/bin/Release/net48/ScanAttach.dll `
+            src/ScanAttach/bin/Release/net48/ScanAttach.Core.dll `
+            src/ScanAttach.Updater/bin/Release/net48/ScanAttach.Updater.exe
+
+      - name: Build MSI
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          dotnet build installer/ScanAttach.Installer.wixproj -c Release -p:Version=$env:VERSION -p:BuildProjectReferences=false
+          New-Item -ItemType Directory -Force out | Out-Null
+          Get-ChildItem installer/bin -Recurse -Filter ScanAttach.msi | Select-Object -First 1 | Copy-Item -Destination out/ScanAttach.msi
+
+      - name: Sign MSI
+        if: env.SIGNING_CERT_PFX != ''
+        run: |
+          & $env:SIGNTOOL sign /f $env:SIGNING_PFX /p $env:SIGNING_CERT_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 out/ScanAttach.msi
+          Remove-Item $env:SIGNING_PFX
+
+      - name: Upload artifact
+        if: steps.version.outputs.tag == ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: ScanAttach-${{ steps.version.outputs.version }}
+          path: out/ScanAttach.msi
+          if-no-files-found: error
+
+      - name: Upload release assets
+        if: steps.version.outputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: gh release upload $env:TAG out/ScanAttach.msi deploy/config.example.json deploy/install.cmd --clobber
