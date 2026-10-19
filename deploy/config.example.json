@@ -1,0 +1,18 @@
+{
+  "defaults": {
+    "ScanPath": "\\\\filer01\\scans\\%USERNAME%",
+    "GroupLabel": "Scanner",
+    "GalleryLabel": "Meine Scans",
+    "MaxItems": 12,
+    "MaxAgeDays": 7,
+    "FileFilter": "*.pdf;*.jpg",
+    "AllowUserOverride": false
+  },
+  "users": {
+    "mmueller": { "ScanPath": "\\\\filer01\\scans\\buchhaltung" }
+  },
+  "update": {
+    "MsiPath": "\\\\filer01\\it$\\scanattach\\ScanAttach.msi",
+    "MinVersion": "0.1.0"
+  }
+}
