@@ -30,7 +30,23 @@ internal static class Program
                 return 0;
             }
 
-            var msiPath = Environment.ExpandEnvironmentVariables(central.MsiPath);
+            // Remove copies left by earlier runs.
+            foreach (var old in Directory.GetFiles(Path.GetTempPath(), "QuickAttach-update-*.msi"))
+            {
+                try
+                {
+                    File.Delete(old);
+                }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+                {
+                    // Still in use by msiexec; a later run removes it.
+                }
+            }
+
+            // Check and install a local copy, so the file on the share cannot change after verification.
+            var sharePath = Environment.ExpandEnvironmentVariables(central.MsiPath);
+            var msiPath = Path.Combine(Path.GetTempPath(), "QuickAttach-update-" + Guid.NewGuid().ToString("N") + ".msi");
+            File.Copy(sharePath, msiPath);
             var msiVersion = MsiPackage.ReadProductVersion(msiPath);
             var installed = typeof(Program).Assembly.GetName().Version;
             if (!VersionPolicy.IsUpdateAvailable(installed, msiVersion))
@@ -38,9 +54,15 @@ internal static class Program
                 return 0;
             }
 
+            if (!MsiHash.IsAllowed(central.MsiSha256, MsiHash.Compute(msiPath)))
+            {
+                Log.Info(Source, "MSI hash does not match update.MsiSha256, update skipped: " + sharePath);
+                return 0;
+            }
+
             // The MSI replaces this executable, so start msiexec and exit without waiting.
             var logPath = Path.Combine(Path.GetTempPath(), "QuickAttach-update.log");
-            Log.Info(Source, "Installing " + msiVersion + " over " + installed + " from " + msiPath + ", log: " + logPath);
+            Log.Info(Source, "Installing " + msiVersion + " over " + installed + " from " + sharePath + ", log: " + logPath);
             Process.Start(new ProcessStartInfo("msiexec.exe", "/i \"" + msiPath + "\" /qn /norestart REBOOT=ReallySuppress /l*v \"" + logPath + "\"")
             {
                 UseShellExecute = false,

@@ -36,8 +36,6 @@ jobs:
       attestations: write
     env:
       RELEASES: ${{ needs.ci.outputs.releases }}
-      SIGNING_CERT_PFX: ${{ secrets.SIGNING_CERT_PFX }}
-      SIGNING_CERT_PASSWORD: ${{ secrets.SIGNING_CERT_PASSWORD }}
     defaults:
       run:
         shell: pwsh
@@ -84,23 +82,6 @@ jobs:
           dotnet build src/QuickAttach/QuickAttach.csproj -c Release -p:Version=$env:VERSION
           dotnet build src/QuickAttach.Updater/QuickAttach.Updater.csproj -c Release -p:Version=$env:VERSION
 
-      - name: Prepare signing
-        if: env.SIGNING_CERT_PFX != ''
-        run: |
-          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName | Select-Object -Last 1
-          $pfx = Join-Path $env:RUNNER_TEMP 'signing.pfx'
-          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:SIGNING_CERT_PFX))
-          "SIGNTOOL=$($signtool.FullName)" >> $env:GITHUB_ENV
-          "SIGNING_PFX=$pfx" >> $env:GITHUB_ENV
-
-      - name: Sign binaries
-        if: env.SIGNING_CERT_PFX != ''
-        run: |
-          & $env:SIGNTOOL sign /f $env:SIGNING_PFX /p $env:SIGNING_CERT_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 `
-            src/QuickAttach/bin/Release/net48/QuickAttach.dll `
-            src/QuickAttach/bin/Release/net48/QuickAttach.Core.dll `
-            src/QuickAttach.Updater/bin/Release/net48/QuickAttach.Updater.exe
-
       - name: Build MSI
         env:
           VERSION: ${{ steps.version.outputs.version }}
@@ -108,12 +89,6 @@ jobs:
           dotnet build installer/QuickAttach.Installer.wixproj -c Release -p:Version=$env:VERSION -p:BuildProjectReferences=false
           New-Item -ItemType Directory -Force out | Out-Null
           Get-ChildItem installer/bin -Recurse -Filter QuickAttach.msi | Select-Object -First 1 | Copy-Item -Destination out/QuickAttach.msi
-
-      - name: Sign MSI
-        if: env.SIGNING_CERT_PFX != ''
-        run: |
-          & $env:SIGNTOOL sign /f $env:SIGNING_PFX /p $env:SIGNING_CERT_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 out/QuickAttach.msi
-          Remove-Item $env:SIGNING_PFX
 
       - name: Write checksums
         env:

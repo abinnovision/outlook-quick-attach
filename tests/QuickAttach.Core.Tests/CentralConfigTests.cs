@@ -10,7 +10,7 @@ public class CentralConfigTests
         {
           "defaults": { "FolderPath": "/files", "MaxItems": 12, "AllowUserOverride": false },
           "users": { "mmueller": { "FolderPath": "/files/buchhaltung" } },
-          "update": { "MsiPath": "/it/QuickAttach.msi", "MinVersion": "1.2.0" }
+          "update": { "MsiPath": "/it/QuickAttach.msi", "MinVersion": "1.2.0", "MsiSha256": "ABC123" }
         }
         """;
 
@@ -30,6 +30,7 @@ public class CentralConfigTests
         Assert.Equal("/files/buchhaltung", config.ForUser("mmueller")["FolderPath"]);
         Assert.Equal("/it/QuickAttach.msi", config.MsiPath);
         Assert.Equal("1.2.0", config.MinVersion);
+        Assert.Equal("ABC123", config.MsiSha256);
         Assert.Equal(Json, File.ReadAllText(cachePath));
     }
 

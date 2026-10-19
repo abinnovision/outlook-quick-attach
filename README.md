@@ -49,7 +49,8 @@ The add-in reads its settings from a central `config.json`, usually next to the 
   },
   "update": {
     "MsiPath": "\\\\filer01\\it$\\quickattach\\QuickAttach.msi",
-    "MinVersion": "0.1.0"
+    "MinVersion": "0.1.0",
+    "MsiSha256": "<sha256 of QuickAttach.msi from SHA256SUMS>"
   }
 }
 ```
@@ -73,6 +74,7 @@ Built-in defaults apply to keys that are not set, except `FolderPath` and `Addit
 | `users`             | object  | none                                             | Per-user keys, matched by user name (case-insensitive)                  |
 | `update.MsiPath`    | string  | none                                             | MSI the logon updater installs                                          |
 | `update.MinVersion` | string  | none                                             | Minimum version; older installs disable the menu                        |
+| `update.MsiSha256`  | string  | none                                             | Expected SHA-256 of the MSI; the updater skips an MSI that differs      |
 
 Lists (`AdditionalPaths`, `FileFilter`) accept a `;`-separated string or a JSON array. Booleans accept `true`/`false`
 or `1`/`0`.
@@ -129,6 +131,10 @@ msiexec /i QuickAttach.msi /qn CONFIGPATH="\\filer01\it$\quickattach\config.json
 Updates: copy a newer MSI to `update.MsiPath`. The updater installs it at the next logon, before Outlook starts.
 `update.MinVersion` above the installed version disables the menu with "Please install the update".
 
+To pin the update, verify the release with `gh attestation verify` (see [Verify a download](#verify-a-download)), then
+put its SHA-256 from `SHA256SUMS` into `update.MsiSha256`. The updater copies the MSI to `%TEMP%`, checks the hash of
+that copy and installs it only on a match. Without `update.MsiSha256` it installs any newer MSI.
+
 ## Builds
 
 - Stable releases: GitHub Releases, with `QuickAttach.msi`, `config.example.json`, `install.cmd` and `SHA256SUMS`.
@@ -136,7 +142,8 @@ Updates: copy a newer MSI to `update.MsiPath`. The updater installs it at the ne
   `QuickAttach-<version>`, versioned `<package.json version>.<run number>` (e.g. `0.1.0.57`). A newer dev build of the
   same release upgrades in place.
 
-Each build ships a `SHA256SUMS` file and a GitHub build provenance attestation.
+Each build ships a `SHA256SUMS` file and a GitHub build provenance attestation. Builds are not code-signed, so Outlook
+shows the add-in's publisher as `<None>` and SmartScreen may warn when the MSI is downloaded from the internet.
 
 ### Verify a download
 
