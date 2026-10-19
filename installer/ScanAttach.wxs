@@ -9,12 +9,30 @@
     <MajorUpgrade DowngradeErrorMessage="Eine neuere Version von ScanAttach ist bereits installiert." />
     <MediaTemplate EmbedCab="yes" />
 
-    <!-- Remember CONFIGPATH across upgrades and repairs; a value on the command line wins. -->
+    <!-- Remember the properties across upgrades and repairs; a value on the command line wins. -->
     <SetProperty Id="CMDLINE_CONFIGPATH" Value="[CONFIGPATH]" Before="AppSearch" Sequence="first" Condition="CONFIGPATH" />
     <Property Id="CONFIGPATH">
       <RegistrySearch Id="RememberedConfigPath" Root="HKCU" Key="Software\abi\ScanAttach" Name="ConfigPath" Type="raw" />
     </Property>
     <SetProperty Id="CONFIGPATH" Value="[CMDLINE_CONFIGPATH]" After="AppSearch" Sequence="first" Condition="CMDLINE_CONFIGPATH" />
+
+    <SetProperty Id="CMDLINE_SCANPATH" Value="[SCANPATH]" Before="AppSearch" Sequence="first" Condition="SCANPATH" />
+    <Property Id="SCANPATH">
+      <RegistrySearch Id="RememberedScanPath" Root="HKCU" Key="Software\abi\ScanAttach\Install" Name="ScanPath" Type="raw" />
+    </Property>
+    <SetProperty Id="SCANPATH" Value="[CMDLINE_SCANPATH]" After="AppSearch" Sequence="first" Condition="CMDLINE_SCANPATH" />
+
+    <SetProperty Id="CMDLINE_GROUPLABEL" Value="[GROUPLABEL]" Before="AppSearch" Sequence="first" Condition="GROUPLABEL" />
+    <Property Id="GROUPLABEL">
+      <RegistrySearch Id="RememberedGroupLabel" Root="HKCU" Key="Software\abi\ScanAttach\Install" Name="GroupLabel" Type="raw" />
+    </Property>
+    <SetProperty Id="GROUPLABEL" Value="[CMDLINE_GROUPLABEL]" After="AppSearch" Sequence="first" Condition="CMDLINE_GROUPLABEL" />
+
+    <SetProperty Id="CMDLINE_GALLERYLABEL" Value="[GALLERYLABEL]" Before="AppSearch" Sequence="first" Condition="GALLERYLABEL" />
+    <Property Id="GALLERYLABEL">
+      <RegistrySearch Id="RememberedGalleryLabel" Root="HKCU" Key="Software\abi\ScanAttach\Install" Name="GalleryLabel" Type="raw" />
+    </Property>
+    <SetProperty Id="GALLERYLABEL" Value="[CMDLINE_GALLERYLABEL]" After="AppSearch" Sequence="first" Condition="CMDLINE_GALLERYLABEL" />
 
     <StandardDirectory Id="LocalAppDataFolder">
       <Directory Id="ProgramsFolder" Name="Programs">
@@ -81,8 +99,9 @@
       </Component>
 
       <!-- Optional fallback values when no central config.json is used. -->
+      <!-- REG_SZ: a raw RegistrySearch would return REG_EXPAND_SZ with a "#%" prefix. The add-in expands variables itself. -->
       <Component Id="InstallScanPath" Condition="SCANPATH">
-        <RegistryValue Root="HKCU" Key="Software\abi\ScanAttach\Install" Name="ScanPath" Type="expandable" Value="[SCANPATH]" KeyPath="yes" />
+        <RegistryValue Root="HKCU" Key="Software\abi\ScanAttach\Install" Name="ScanPath" Type="string" Value="[SCANPATH]" KeyPath="yes" />
       </Component>
       <Component Id="InstallGroupLabel" Condition="GROUPLABEL">
         <RegistryValue Root="HKCU" Key="Software\abi\ScanAttach\Install" Name="GroupLabel" Type="string" Value="[GROUPLABEL]" KeyPath="yes" />
