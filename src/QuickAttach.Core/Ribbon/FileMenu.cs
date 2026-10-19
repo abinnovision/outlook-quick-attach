@@ -32,10 +32,11 @@ public static class FileMenu
         }
 
         menu.Add(new XElement(Ns + "menuSeparator", new XAttribute("id", "sepActions")));
-        menu.Add(Button("btnOpenFolder", "Open folder…", new XAttribute("onAction", "OnOpenFolder")));
+        // Same icons as Outlook's "Browse This PC…" and File > Options.
+        menu.Add(Button("btnOpenFolder", "Open folder…", new XAttribute("imageMso", "FileOpen"), new XAttribute("onAction", "OnOpenFolder")));
         if (showSettings)
         {
-            menu.Add(Button("btnSettings", "Settings…", new XAttribute("onAction", "OnSettings")));
+            menu.Add(Button("btnSettings", "Settings…", new XAttribute("imageMso", "ApplicationOptionsDialog"), new XAttribute("onAction", "OnSettings")));
         }
 
         return menu.ToString(SaveOptions.DisableFormatting);

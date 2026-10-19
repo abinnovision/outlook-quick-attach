@@ -26,6 +26,8 @@ public class FileMenuTests
         Assert.Equal("GetFileImage", (string?)buttons[0].Attribute("getImage"));
         Assert.Equal("OnFileClick", (string?)buttons[0].Attribute("onAction"));
         Assert.Single(menu.Elements(Ns + "menuSeparator"));
+        Assert.Equal("FileOpen", (string?)buttons[2].Attribute("imageMso"));
+        Assert.Equal("ApplicationOptionsDialog", (string?)buttons[3].Attribute("imageMso"));
     }
 
     [Fact]
