@@ -28,7 +28,7 @@ jobs:
     name: MSI
     needs: ci
     # Pull requests and merge groups get a test MSI; pushes only when this unit was released.
-    if: github.event_name != 'push' || contains(needs.ci.outputs.releases, '"outlook-quick-attach"')
+    if: github.event_name != 'push' || contains(fromJSON(needs.ci.outputs.releases || '[]').*.id, 'outlook-quick-attach')
     runs-on: windows-latest
     timeout-minutes: 20
     permissions:
