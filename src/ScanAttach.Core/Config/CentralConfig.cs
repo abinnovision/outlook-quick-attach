@@ -20,21 +20,18 @@ public sealed class CentralConfig
         Dictionary<string, IReadOnlyDictionary<string, object?>> users,
         string? msiPath,
         string? minVersion,
-        bool fromCache)
+        bool fromCache,
+        bool readFailed)
     {
         Defaults = defaults;
         _users = users;
         MsiPath = msiPath;
         MinVersion = minVersion;
         FromCache = fromCache;
+        ReadFailed = readFailed;
     }
 
-    public static CentralConfig Empty { get; } = new(
-        EmptyLayer,
-        new Dictionary<string, IReadOnlyDictionary<string, object?>>(StringComparer.OrdinalIgnoreCase),
-        null,
-        null,
-        false);
+    public static CentralConfig Empty { get; } = CreateEmpty(readFailed: false);
 
     /// <summary>Default location of the local cache: %LocalAppData%\abi\ScanAttach\config.cache.json.</summary>
     public static string DefaultCachePath => Path.Combine(
@@ -48,6 +45,9 @@ public sealed class CentralConfig
 
     /// <summary>True when the central file could not be read and the local cache was used.</summary>
     public bool FromCache { get; }
+
+    /// <summary>True when a config path is set but the central file could not be read, with or without cache.</summary>
+    public bool ReadFailed { get; }
 
     /// <summary>Returns the users[name] layer (case-insensitive), or an empty layer.</summary>
     public IReadOnlyDictionary<string, object?> ForUser(string userName) =>
@@ -73,7 +73,7 @@ public sealed class CentralConfig
         }
 
         var cached = TryRead(cachePath, timeout);
-        return (cached == null ? null : TryParse(cached, fromCache: true)) ?? Empty;
+        return (cached == null ? null : TryParse(cached, fromCache: true)) ?? CreateEmpty(readFailed: true);
     }
 
     public static CentralConfig Parse(string json) => Parse(json, fromCache: false);
@@ -96,8 +96,17 @@ public sealed class CentralConfig
             users,
             (string?)update?["MsiPath"],
             (string?)update?["MinVersion"],
-            fromCache);
+            fromCache,
+            readFailed: fromCache);
     }
+
+    private static CentralConfig CreateEmpty(bool readFailed) => new(
+        EmptyLayer,
+        new Dictionary<string, IReadOnlyDictionary<string, object?>>(StringComparer.OrdinalIgnoreCase),
+        null,
+        null,
+        fromCache: false,
+        readFailed);
 
     private static CentralConfig? TryParse(string json, bool fromCache)
     {

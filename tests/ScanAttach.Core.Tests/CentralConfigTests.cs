@@ -25,6 +25,7 @@ public class CentralConfigTests
         var config = CentralConfig.LoadWithCache(configPath, cachePath, Timeout);
 
         Assert.False(config.FromCache);
+        Assert.False(config.ReadFailed);
         Assert.Equal("/scans", config.Defaults["ScanPath"]);
         Assert.Equal("/scans/buchhaltung", config.ForUser("mmueller")["ScanPath"]);
         Assert.Equal("/it/ScanAttach.msi", config.MsiPath);
@@ -42,6 +43,7 @@ public class CentralConfigTests
         var config = CentralConfig.LoadWithCache(dir.Combine("missing", "config.json"), cachePath, Timeout);
 
         Assert.True(config.FromCache);
+        Assert.True(config.ReadFailed);
         Assert.Equal("/scans", config.Defaults["ScanPath"]);
         Assert.Equal("1.2.0", config.MinVersion);
     }
@@ -68,6 +70,7 @@ public class CentralConfigTests
 
         var config = CentralConfig.LoadWithCache(dir.Combine("config.json"), dir.Combine("config.cache.json"), Timeout);
 
+        Assert.True(config.ReadFailed);
         Assert.Empty(config.Defaults);
         Assert.Empty(config.ForUser("anyone"));
         Assert.Null(config.MinVersion);

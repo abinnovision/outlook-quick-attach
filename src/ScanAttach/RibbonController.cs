@@ -26,6 +26,7 @@ public class RibbonController : IRibbonExtensibility
     private const string BlockedLabel = "Bitte Update installieren";
     private const string UpdateHint = "Update wird beim nächsten Anmelden installiert";
     private static readonly TimeSpan ConfigCacheWindow = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan CentralRetryWindow = TimeSpan.FromSeconds(60);
     private static readonly Version InstalledVersion = typeof(RibbonController).Assembly.GetName().Version;
 
     private readonly List<IRibbonUI> _ribbons = new();
@@ -35,18 +36,20 @@ public class RibbonController : IRibbonExtensibility
     private CentralConfig _central = CentralConfig.Empty;
     private ScanAttachConfig _config = new();
     private DateTime _loadedAt = DateTime.MinValue;
+    private DateTime _centralLoadedAt = DateTime.MinValue;
+    private bool _centralFailed;
     private ScanResult _scans = new(new ScanItem[0], unreachable: false);
     private volatile bool _updateAvailable;
 
     protected void Start(SynchronizationContext ui)
     {
         _ui = ui;
+        _watcher = new ConfigWatcher(() => ui.Post(_ => Invalidate(), null));
         Task.Run(() =>
         {
             Guard("Startup", () =>
             {
                 KeepAddinEnabled();
-                _watcher = new ConfigWatcher(() => _ui.Post(_ => Invalidate(), null));
                 CheckForUpdate();
             });
         });
@@ -85,8 +88,6 @@ public class RibbonController : IRibbonExtensibility
     {
         return Guard("GetItemCount", () =>
         {
-            // Folder, filter and limits are read fresh on every drop.
-            _loadedAt = DateTime.MinValue;
             var config = Current();
             if (IsBlocked())
             {
@@ -157,22 +158,41 @@ public class RibbonController : IRibbonExtensibility
 
     private ScanAttachConfig Current()
     {
-        // Several callbacks fire per refresh; reuse the loaded config briefly.
-        if (DateTime.UtcNow - _loadedAt > ConfigCacheWindow)
+        // Several callbacks fire per refresh; reuse the loaded config briefly. After a failed
+        // central read, keep the last result for longer so the UI thread does not wait on every refresh.
+        var now = DateTime.UtcNow;
+        if (now - _loadedAt > ConfigCacheWindow)
         {
-            _central = ConfigLoader.LoadCentral();
+            if (now - _centralLoadedAt > (_centralFailed ? CentralRetryWindow : ConfigCacheWindow))
+            {
+                var central = ConfigLoader.LoadCentral();
+                _centralFailed = central.ReadFailed;
+                if (!central.ReadFailed || central.FromCache)
+                {
+                    // Without file and cache, the last good config stays in use.
+                    _central = central;
+                }
+
+                _centralLoadedAt = now;
+            }
+
             _config = ConfigLoader.Resolve(_central);
-            _loadedAt = DateTime.UtcNow;
+            _loadedAt = now;
         }
 
         return _config;
     }
 
-    private bool IsBlocked() => VersionPolicy.IsBlocked(InstalledVersion, _central.MinVersion);
+    private bool IsBlocked()
+    {
+        Current();
+        return VersionPolicy.IsBlocked(InstalledVersion, _central.MinVersion);
+    }
 
     private void Invalidate()
     {
         _loadedAt = DateTime.MinValue;
+        _centralLoadedAt = DateTime.MinValue;
         foreach (var ribbon in _ribbons)
         {
             ribbon.Invalidate();
