@@ -18,16 +18,13 @@ internal static class ConfigLoader
     public static QuickAttachConfig Resolve(CentralConfig central) => ConfigResolver.Resolve(
         new[]
         {
-            RegistrySource.Read(RegistrySource.PolicyKey),
             central.ForUser(Environment.UserName),
             central.Defaults,
+            RegistrySource.Read(RegistrySource.UserKey),
             RegistrySource.Read(RegistrySource.InstallKey),
-        },
-        RegistrySource.Read(RegistrySource.UserKey));
+        });
 
-    /// <summary>True when policy or central config sets the value, so the user cannot change it.</summary>
+    /// <summary>True when config.json sets the value, so the settings dialog cannot change it.</summary>
     public static bool IsLocked(CentralConfig central, string name) =>
-        RegistrySource.Read(RegistrySource.PolicyKey).ContainsKey(name)
-        || central.ForUser(Environment.UserName).ContainsKey(name)
-        || central.Defaults.ContainsKey(name);
+        central.ForUser(Environment.UserName).ContainsKey(name) || central.Defaults.ContainsKey(name);
 }

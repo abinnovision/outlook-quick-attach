@@ -41,8 +41,7 @@ The add-in reads its settings from a central `config.json`, usually next to the 
     "MaxItems": 10,
     "MaxAgeDays": 0,
     "FileFilter": ["*.pdf", "*.jpg", "*.png", "*.tif"],
-    "ShowThumbnails": true,
-    "AllowUserOverride": false
+    "ShowThumbnails": true
   },
   "users": {
     "jdoe": { "FolderPath": "\\\\filer01\\files\\accounting" }
@@ -70,7 +69,6 @@ Built-in defaults apply to keys that are not set, except `FolderPath` and `Addit
 | `MaxAgeDays`        | integer | `0`                                              | Hide files older than this many days; `0` shows all                     |
 | `FileFilter`        | list    | `*.pdf`, `*.jpg`, `*.png`, `*.tif`               | File name patterns                                                      |
 | `ShowThumbnails`    | boolean | `true`                                           | Show file type icons                                                    |
-| `AllowUserOverride` | boolean | `false`                                          | Enables "Settings..." and the user override layer                       |
 | `users`             | object  | none                                             | Per-user keys, matched by user name (case-insensitive)                  |
 | `update.MsiPath`    | string  | none                                             | MSI the logon updater installs                                          |
 | `update.MinVersion` | string  | none                                             | Minimum version; older installs disable the menu                        |
@@ -86,18 +84,22 @@ The path of `config.json` is stored in `HKCU\Software\abigroup\QuickAttach\Confi
 
 Each value is taken from the first source that sets it, highest priority first:
 
-| Priority | Source                                                                                   |
-| -------- | ---------------------------------------------------------------------------------------- |
-| 1        | Policy: `HKCU\Software\Policies\abigroup\QuickAttach`                                    |
-| 2        | User override: `HKCU\Software\abigroup\QuickAttach\User` (only with `AllowUserOverride`) |
-| 3        | `config.json`: `users[<USERNAME>]`                                                       |
-| 4        | `config.json`: `defaults`                                                                |
-| 5        | MSI properties: `HKCU\Software\abigroup\QuickAttach\Install`                             |
-| 6        | Built-in defaults                                                                        |
+| Priority | Source                                                       |
+| -------- | ------------------------------------------------------------ |
+| 1        | `config.json`: `users[<USERNAME>]`                           |
+| 2        | `config.json`: `defaults`                                    |
+| 3        | User settings: `HKCU\Software\abigroup\QuickAttach\User`     |
+| 4        | MSI properties: `HKCU\Software\abigroup\QuickAttach\Install` |
+| 5        | Built-in defaults                                            |
 
 Example: `defaults` sets `FolderPath` and `GroupLabel`, and `users.jdoe` overrides only `FolderPath`. User `jdoe` gets
 the overriding folder with the default group label. Everyone else gets the default folder and label. Keys set nowhere use the
 built-in default.
+
+User settings come from Settings… in the menu. Values that `config.json` sets are greyed out there, so the dialog
+cannot change them. This is not a security boundary: every source lives in places the user can write (HKCU, and the
+`ConfigPath` value that points to `config.json`), so a determined user can change their own setup. Unknown keys are
+ignored.
 
 The last good `config.json` is cached in `%LocalAppData%\abigroup\QuickAttach\config.cache.json` and used when the
 share is not reachable.

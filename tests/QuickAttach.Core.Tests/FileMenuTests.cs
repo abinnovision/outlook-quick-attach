@@ -15,7 +15,7 @@ public class FileMenuTests
             [new FileItem(Path.Combine("files", "a&b <1>.pdf"), new DateTime(2026, 3, 7, 9, 5, 0)), new FileItem(Path.Combine("files", "c.txt"), DateTime.Now)],
             unreachable: false);
 
-        var menu = XElement.Parse(FileMenu.Build(files, showIcons: true, showSettings: true));
+        var menu = XElement.Parse(FileMenu.Build(files, showIcons: true));
         var buttons = menu.Elements(Ns + "button").ToList();
 
         Assert.Equal("large", (string?)menu.Attribute("itemSize"));
@@ -31,14 +31,13 @@ public class FileMenuTests
     }
 
     [Fact]
-    public void Build_OmitsIconsAndSettingsWhenDisabled()
+    public void Build_OmitsIconsWhenDisabled()
     {
         var files = new FileResult([new FileItem(Path.Combine("files", "c.txt"), DateTime.Now)], unreachable: false);
 
-        var menu = XElement.Parse(FileMenu.Build(files, showIcons: false, showSettings: false));
+        var menu = XElement.Parse(FileMenu.Build(files, showIcons: false));
 
         Assert.Null(menu.Element(Ns + "button")!.Attribute("getImage"));
-        Assert.DoesNotContain(menu.Elements(Ns + "button"), b => (string?)b.Attribute("id") == "btnSettings");
     }
 
     [Theory]
@@ -46,7 +45,7 @@ public class FileMenuTests
     [InlineData(false, "btnEmpty")]
     public void Build_ShowsDisabledPlaceholderWithoutFiles(bool unreachable, string id)
     {
-        var menu = XElement.Parse(FileMenu.Build(new FileResult([], unreachable), showIcons: true, showSettings: false));
+        var menu = XElement.Parse(FileMenu.Build(new FileResult([], unreachable), showIcons: true));
         var first = menu.Elements(Ns + "button").First();
 
         Assert.Equal(id, (string?)first.Attribute("id"));

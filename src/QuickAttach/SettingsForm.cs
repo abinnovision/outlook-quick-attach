@@ -6,7 +6,7 @@ using QuickAttach.Core.Config;
 
 namespace QuickAttach;
 
-/// <summary>User settings, written to HKCU\Software\abigroup\QuickAttach\User. Values set by policy or central config are read-only.</summary>
+/// <summary>User settings, written to HKCU\Software\abigroup\QuickAttach\User. Values set by config.json are read-only.</summary>
 internal sealed class SettingsForm : Form
 {
     private readonly TextBox _folderPath = new() { Width = 320 };

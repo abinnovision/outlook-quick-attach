@@ -12,35 +12,24 @@ namespace QuickAttach.Core.Config;
 /// </summary>
 public static class ConfigResolver
 {
-    /// <param name="layers">Policy, central users[name], central defaults, install, in that order.</param>
-    /// <param name="userLayer">User override layer, inserted at index 1 when AllowUserOverride resolves to true.</param>
-    public static QuickAttachConfig Resolve(
-        IReadOnlyList<IReadOnlyDictionary<string, object?>> layers,
-        IReadOnlyDictionary<string, object?>? userLayer = null)
+    /// <param name="layers">Central users[name], central defaults, user settings, install, in that order.</param>
+    public static QuickAttachConfig Resolve(IReadOnlyList<IReadOnlyDictionary<string, object?>> layers)
     {
-        var effective = layers.ToList();
-        var allowUserOverride = (bool?)Find(effective, "AllowUserOverride", ParseBool) ?? false;
-        if (allowUserOverride && userLayer != null)
-        {
-            effective.Insert(Math.Min(1, effective.Count), userLayer);
-        }
-
         var defaults = new QuickAttachConfig();
         return new QuickAttachConfig
         {
-            FolderPath = Environment.ExpandEnvironmentVariables((string?)Find(effective, "FolderPath", ParseString) ?? defaults.FolderPath),
-            AdditionalPaths = ((IReadOnlyList<string>?)Find(effective, "AdditionalPaths", ParseList) ?? defaults.AdditionalPaths)
+            FolderPath = Environment.ExpandEnvironmentVariables((string?)Find(layers, "FolderPath", ParseString) ?? defaults.FolderPath),
+            AdditionalPaths = ((IReadOnlyList<string>?)Find(layers, "AdditionalPaths", ParseList) ?? defaults.AdditionalPaths)
                 .Select(Environment.ExpandEnvironmentVariables)
                 .ToArray(),
-            GroupLabel = (string?)Find(effective, "GroupLabel", ParseString) ?? defaults.GroupLabel,
-            GalleryLabel = (string?)Find(effective, "GalleryLabel", ParseString) ?? defaults.GalleryLabel,
-            GalleryScreentip = (string?)Find(effective, "GalleryScreentip", ParseString) ?? defaults.GalleryScreentip,
-            TargetTab = (string?)Find(effective, "TargetTab", ParseString) ?? defaults.TargetTab,
-            MaxItems = Clamp((int?)Find(effective, "MaxItems", ParseInt) ?? defaults.MaxItems, 1, 30),
-            MaxAgeDays = Math.Max(0, (int?)Find(effective, "MaxAgeDays", ParseInt) ?? defaults.MaxAgeDays),
-            FileFilter = (IReadOnlyList<string>?)Find(effective, "FileFilter", ParseList) ?? defaults.FileFilter,
-            ShowThumbnails = (bool?)Find(effective, "ShowThumbnails", ParseBool) ?? defaults.ShowThumbnails,
-            AllowUserOverride = allowUserOverride,
+            GroupLabel = (string?)Find(layers, "GroupLabel", ParseString) ?? defaults.GroupLabel,
+            GalleryLabel = (string?)Find(layers, "GalleryLabel", ParseString) ?? defaults.GalleryLabel,
+            GalleryScreentip = (string?)Find(layers, "GalleryScreentip", ParseString) ?? defaults.GalleryScreentip,
+            TargetTab = (string?)Find(layers, "TargetTab", ParseString) ?? defaults.TargetTab,
+            MaxItems = Clamp((int?)Find(layers, "MaxItems", ParseInt) ?? defaults.MaxItems, 1, 30),
+            MaxAgeDays = Math.Max(0, (int?)Find(layers, "MaxAgeDays", ParseInt) ?? defaults.MaxAgeDays),
+            FileFilter = (IReadOnlyList<string>?)Find(layers, "FileFilter", ParseList) ?? defaults.FileFilter,
+            ShowThumbnails = (bool?)Find(layers, "ShowThumbnails", ParseBool) ?? defaults.ShowThumbnails,
         };
     }
 

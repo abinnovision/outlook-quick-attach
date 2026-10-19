@@ -16,26 +16,36 @@ public class ConfigResolverTests
     }
 
     [Fact]
-    public void Resolve_AppliesPriorityAcrossAllFiveLayers()
+    public void Resolve_AppliesPriorityAcrossAllLayers()
     {
-        var policy = Layer(("GroupLabel", "policy"), ("AllowUserOverride", true));
-        var user = Layer(("GroupLabel", "user"), ("GalleryLabel", "user"));
         var central = CentralConfig.Parse("""
             {
-              "defaults": { "GroupLabel": "defaults", "GalleryLabel": "defaults", "GalleryScreentip": "defaults", "TargetTab": "Insert" },
-              "users": { "anna": { "GroupLabel": "anna", "GalleryLabel": "anna", "GalleryScreentip": "anna" } }
+              "defaults": { "GroupLabel": "defaults", "GalleryLabel": "defaults", "TargetTab": "Insert" },
+              "users": { "anna": { "GroupLabel": "anna" } }
             }
             """);
-        var install = Layer(("GroupLabel", "install"), ("TargetTab", "install"), ("FolderPath", "/install"));
+        var user = Layer(("GroupLabel", "user"), ("GalleryLabel", "user"), ("TargetTab", "Message"), ("GalleryScreentip", "user"));
+        var install = Layer(("GroupLabel", "install"), ("GalleryScreentip", "install"), ("FolderPath", "/install"));
 
-        var config = ConfigResolver.Resolve([policy, central.ForUser("anna"), central.Defaults, install], user);
+        var config = ConfigResolver.Resolve([central.ForUser("anna"), central.Defaults, user, install]);
 
-        Assert.Equal("policy", config.GroupLabel);
-        Assert.Equal("user", config.GalleryLabel);
-        Assert.Equal("anna", config.GalleryScreentip);
+        Assert.Equal("anna", config.GroupLabel);
+        Assert.Equal("defaults", config.GalleryLabel);
         Assert.Equal("Insert", config.TargetTab);
+        Assert.Equal("user", config.GalleryScreentip);
         Assert.Equal("/install", config.FolderPath);
         Assert.Equal(10, config.MaxItems);
+    }
+
+    [Fact]
+    public void Resolve_IgnoresUnknownKeys()
+    {
+        var central = CentralConfig.Parse("""{ "defaults": { "AllowUserOverride": false, "Unknown": 1, "GroupLabel": "central" } }""");
+
+        var config = ConfigResolver.Resolve([central.Defaults, Layer(("GalleryLabel", "user"))]);
+
+        Assert.Equal("central", config.GroupLabel);
+        Assert.Equal("user", config.GalleryLabel);
     }
 
     [Fact]
@@ -53,7 +63,6 @@ public class ConfigResolverTests
         Assert.Equal(0, config.MaxAgeDays);
         Assert.Equal(["*.pdf", "*.jpg", "*.png", "*.tif"], config.FileFilter);
         Assert.True(config.ShowThumbnails);
-        Assert.False(config.AllowUserOverride);
     }
 
     [Fact]
@@ -81,32 +90,6 @@ public class ConfigResolverTests
         var config = ConfigResolver.Resolve([central.ForUser("mmueller"), central.Defaults]);
 
         Assert.Equal("/b", config.FolderPath);
-    }
-
-    [Fact]
-    public void Resolve_AllowUserOverrideFalse_IgnoresUserLayer()
-    {
-        var user = Layer(("GroupLabel", "user"), ("AllowUserOverride", true));
-        var defaults = Layer(("GroupLabel", "central"), ("AllowUserOverride", false));
-
-        var config = ConfigResolver.Resolve([defaults], user);
-
-        Assert.Equal("central", config.GroupLabel);
-        Assert.False(config.AllowUserOverride);
-    }
-
-    [Fact]
-    public void Resolve_AllowUserOverrideTrue_UserLayerBelowPolicy()
-    {
-        var policy = Layer(("MaxItems", 3));
-        var user = Layer(("MaxItems", 7), ("GroupLabel", "user"));
-        var defaults = Layer(("GroupLabel", "central"), ("AllowUserOverride", 1));
-
-        var config = ConfigResolver.Resolve([policy, defaults], user);
-
-        Assert.Equal(3, config.MaxItems);
-        Assert.Equal("user", config.GroupLabel);
-        Assert.True(config.AllowUserOverride);
     }
 
     [Fact]

@@ -5,8 +5,7 @@
     "GalleryLabel": "My Files",
     "MaxItems": 12,
     "MaxAgeDays": 7,
-    "FileFilter": "*.pdf;*.jpg",
-    "AllowUserOverride": false
+    "FileFilter": "*.pdf;*.jpg"
   },
   "users": {
     "jdoe": { "FolderPath": "\\\\filer01\\documents\\accounting" }
