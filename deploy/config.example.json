@@ -1,15 +1,15 @@
 {
   "defaults": {
-    "FolderPath": "\\\\filer01\\ablage\\%USERNAME%",
-    "GroupLabel": "Ablage",
-    "GalleryLabel": "Meine Dateien",
+    "FolderPath": "\\\\filer01\\documents\\%USERNAME%",
+    "GroupLabel": "Documents",
+    "GalleryLabel": "My Files",
     "MaxItems": 12,
     "MaxAgeDays": 7,
     "FileFilter": "*.pdf;*.jpg",
     "AllowUserOverride": false
   },
   "users": {
-    "mmueller": { "FolderPath": "\\\\filer01\\ablage\\buchhaltung" }
+    "jdoe": { "FolderPath": "\\\\filer01\\documents\\accounting" }
   },
   "update": {
     "MsiPath": "\\\\filer01\\it$\\quickattach\\QuickAttach.msi",

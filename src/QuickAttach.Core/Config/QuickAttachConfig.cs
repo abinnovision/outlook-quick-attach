@@ -9,9 +9,9 @@ public sealed class QuickAttachConfig
 
     public string FolderPath { get; set; } = "";
     public IReadOnlyList<string> AdditionalPaths { get; set; } = new string[0];
-    public string GroupLabel { get; set; } = "Schnell anhängen";
-    public string GalleryLabel { get; set; } = "Letzte Dateien";
-    public string GalleryScreentip { get; set; } = "Neueste Dateien aus dem Ordner anhängen";
+    public string GroupLabel { get; set; } = "Quick Attach";
+    public string GalleryLabel { get; set; } = "Recent Files";
+    public string GalleryScreentip { get; set; } = "Attach recent files from the configured folder";
     public string TargetTab { get; set; } = "Message";
     public int MaxItems { get; set; } = 10;
     public int MaxAgeDays { get; set; }

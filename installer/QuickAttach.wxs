@@ -6,7 +6,7 @@
            Version="$(var.Version)"
            UpgradeCode="1C41DDA8-63B8-4109-92A6-3AEA90C3D91E"
            Scope="perUser">
-    <MajorUpgrade DowngradeErrorMessage="Eine neuere Version von QuickAttach ist bereits installiert." />
+    <MajorUpgrade DowngradeErrorMessage="A newer version of QuickAttach is already installed." />
     <MediaTemplate EmbedCab="yes" />
 
     <!-- Remember the properties across upgrades and repairs; a value on the command line wins. -->
@@ -83,8 +83,8 @@
 
       <Component Id="OutlookAddin">
         <RegistryKey Root="HKCU" Key="Software\Microsoft\Office\Outlook\Addins\Abigroup.QuickAttach">
-          <RegistryValue Name="FriendlyName" Type="string" Value="QuickAttach" KeyPath="yes" />
-          <RegistryValue Name="Description" Type="string" Value="Dateien aus einem Ordner schnell anhängen" />
+          <RegistryValue Name="FriendlyName" Type="string" Value="Outlook Quick Attach" KeyPath="yes" />
+          <RegistryValue Name="Description" Type="string" Value="Quickly attach files from a folder" />
           <RegistryValue Name="LoadBehavior" Type="integer" Value="3" />
         </RegistryKey>
         <RegistryValue Root="HKCU" Key="Software\Microsoft\Office\16.0\Outlook\Resiliency\DoNotDisableAddinList" Name="Abigroup.QuickAttach" Type="integer" Value="1" />

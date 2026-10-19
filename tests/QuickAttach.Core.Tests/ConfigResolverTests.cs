@@ -45,9 +45,9 @@ public class ConfigResolverTests
 
         Assert.Equal("", config.FolderPath);
         Assert.Empty(config.AdditionalPaths);
-        Assert.Equal("Schnell anhängen", config.GroupLabel);
-        Assert.Equal("Letzte Dateien", config.GalleryLabel);
-        Assert.Equal("Neueste Dateien aus dem Ordner anhängen", config.GalleryScreentip);
+        Assert.Equal("Quick Attach", config.GroupLabel);
+        Assert.Equal("Recent Files", config.GalleryLabel);
+        Assert.Equal("Attach recent files from the configured folder", config.GalleryScreentip);
         Assert.Equal("Message", config.TargetTab);
         Assert.Equal(10, config.MaxItems);
         Assert.Equal(0, config.MaxAgeDays);
@@ -61,7 +61,7 @@ public class ConfigResolverTests
     {
         var central = CentralConfig.Parse("""
             {
-              "defaults": { "FolderPath": "/files/default", "GroupLabel": "Ablage", "MaxItems": 12 },
+              "defaults": { "FolderPath": "/files/default", "GroupLabel": "Documents", "MaxItems": 12 },
               "users": { "mmueller": { "FolderPath": "/files/buchhaltung" } }
             }
             """);
@@ -69,7 +69,7 @@ public class ConfigResolverTests
         var config = ConfigResolver.Resolve([central.ForUser("mmueller"), central.Defaults]);
 
         Assert.Equal("/files/buchhaltung", config.FolderPath);
-        Assert.Equal("Ablage", config.GroupLabel);
+        Assert.Equal("Documents", config.GroupLabel);
         Assert.Equal(12, config.MaxItems);
     }
 
@@ -149,7 +149,7 @@ public class ConfigResolverTests
         var config = ConfigResolver.Resolve([Layer(("MaxItems", "many"), ("GroupLabel", " ")), Layer(("MaxItems", 5))]);
 
         Assert.Equal(5, config.MaxItems);
-        Assert.Equal("Schnell anhängen", config.GroupLabel);
+        Assert.Equal("Quick Attach", config.GroupLabel);
     }
 
     [Fact]

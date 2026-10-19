@@ -8,8 +8,8 @@ namespace QuickAttach.Core.Ribbon;
 /// <summary>Builds the dynamicMenu content: one button per file, then the folder and settings actions.</summary>
 public static class FileMenu
 {
-    public const string UnreachableLabel = "Ordner nicht erreichbar";
-    public const string EmptyLabel = "Keine Dateien gefunden";
+    public const string UnreachableLabel = "Folder not reachable";
+    public const string EmptyLabel = "No files found";
 
     private static readonly XNamespace Ns = "http://schemas.microsoft.com/office/2009/07/customui";
 
@@ -32,10 +32,10 @@ public static class FileMenu
         }
 
         menu.Add(new XElement(Ns + "menuSeparator", new XAttribute("id", "sepActions")));
-        menu.Add(Button("btnOpenFolder", "Ordner öffnen…", new XAttribute("onAction", "OnOpenFolder")));
+        menu.Add(Button("btnOpenFolder", "Open folder…", new XAttribute("onAction", "OnOpenFolder")));
         if (showSettings)
         {
-            menu.Add(Button("btnSettings", "Einstellungen…", new XAttribute("onAction", "OnSettings")));
+            menu.Add(Button("btnSettings", "Settings…", new XAttribute("onAction", "OnSettings")));
         }
 
         return menu.ToString(SaveOptions.DisableFormatting);

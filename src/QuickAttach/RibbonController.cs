@@ -23,8 +23,8 @@ namespace QuickAttach;
 public class RibbonController : IRibbonExtensibility
 {
     private const string AddinProgId = "Abigroup.QuickAttach";
-    private const string BlockedLabel = "Bitte Update installieren";
-    private const string UpdateHint = "Update wird beim nächsten Anmelden installiert";
+    private const string BlockedLabel = "Please install the update";
+    private const string UpdateHint = "An update will be installed at next sign-in";
     private static readonly TimeSpan ConfigCacheWindow = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan CentralRetryWindow = TimeSpan.FromSeconds(60);
     private static readonly Version InstalledVersion = typeof(RibbonController).Assembly.GetName().Version;
@@ -72,10 +72,10 @@ public class RibbonController : IRibbonExtensibility
 
     public void OnRibbonLoad(IRibbonUI ribbon) => _ribbons.Add(ribbon);
 
-    public string GetGroupLabel(IRibbonControl control) => Guard("GetGroupLabel", () => Current().GroupLabel, "Schnell anhängen");
+    public string GetGroupLabel(IRibbonControl control) => Guard("GetGroupLabel", () => Current().GroupLabel, "Quick Attach");
 
     public string GetGalleryLabel(IRibbonControl control) =>
-        Guard("GetGalleryLabel", () => IsBlocked() ? BlockedLabel : Current().GalleryLabel, "Letzte Dateien");
+        Guard("GetGalleryLabel", () => IsBlocked() ? BlockedLabel : Current().GalleryLabel, "Recent Files");
 
     public string GetGalleryScreentip(IRibbonControl control) => Guard(
         "GetGalleryScreentip",
