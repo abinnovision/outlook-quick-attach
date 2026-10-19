@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 using Microsoft.Win32;
 using ScanAttach.Core;
 using ScanAttach.Core.Config;
@@ -37,14 +38,14 @@ internal static class Program
                 return 0;
             }
 
-            Log.Info(Source, "Installing " + msiVersion + " over " + installed + " from " + msiPath);
-            using var msiexec = Process.Start(new ProcessStartInfo("msiexec.exe", "/i \"" + msiPath + "\" /qn")
+            // The MSI replaces this executable, so start msiexec and exit without waiting.
+            var logPath = Path.Combine(Path.GetTempPath(), "ScanAttach-update.log");
+            Log.Info(Source, "Installing " + msiVersion + " over " + installed + " from " + msiPath + ", log: " + logPath);
+            Process.Start(new ProcessStartInfo("msiexec.exe", "/i \"" + msiPath + "\" /qn /norestart REBOOT=ReallySuppress /l*v \"" + logPath + "\"")
             {
                 UseShellExecute = false,
                 CreateNoWindow = true,
-            });
-            msiexec!.WaitForExit();
-            Log.Info(Source, "msiexec exited with " + msiexec.ExitCode);
+            })?.Dispose();
         }
         catch (Exception e)
         {

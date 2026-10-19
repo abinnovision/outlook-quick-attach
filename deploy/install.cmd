@@ -8,5 +8,5 @@ set "CHECK=$i=New-Object -ComObject WindowsInstaller.Installer;$d=$i.GetType().I
 powershell -NoProfile -ExecutionPolicy Bypass -Command "%CHECK%"
 if %ERRORLEVEL% equ 0 exit /b 0
 
-msiexec /i "%MSI%" /qn CONFIGPATH="%~dp0config.json" /l*v "%TEMP%\ScanAttach-install.log"
+msiexec /i "%MSI%" /qn /norestart REBOOT=ReallySuppress CONFIGPATH="%~dp0config.json" /l*v "%TEMP%\ScanAttach-install.log"
 exit /b %ERRORLEVEL%
