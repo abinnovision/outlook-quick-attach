@@ -10,7 +10,8 @@ namespace ScanAttach;
 
 /// <summary>
 /// Signals configuration changes: polls the central config.json every 60 s (SMB change events are unreliable)
-/// and waits for changes of the HKCU keys on background threads.
+/// and waits for changes of the HKCU keys on background threads. The parent keys are watched because
+/// the ScanAttach keys may not exist yet.
 /// </summary>
 internal sealed class ConfigWatcher : IDisposable
 {
@@ -20,15 +21,15 @@ internal sealed class ConfigWatcher : IDisposable
 
     private readonly Action _changed;
     private readonly Timer _timer;
-    private DateTime _lastWrite;
+    private DateTime? _lastWrite;
     private volatile bool _disposed;
 
     public ConfigWatcher(Action changed)
     {
         _changed = changed;
-        _lastWrite = ReadLastWrite();
-        _timer = new Timer(_ => Poll(), null, PollInterval, PollInterval);
-        foreach (var subKey in new[] { RegistrySource.RootKey, RegistrySource.PolicyKey })
+        // The first poll runs at once on the timer thread and only records the baseline.
+        _timer = new Timer(_ => Poll(), null, TimeSpan.Zero, PollInterval);
+        foreach (var subKey in new[] { @"Software\abi", @"Software\Policies" })
         {
             new Thread(() => WatchKey(subKey)) { IsBackground = true, Name = "ScanAttach registry watcher" }.Start();
         }
@@ -45,9 +46,10 @@ internal sealed class ConfigWatcher : IDisposable
         try
         {
             var current = ReadLastWrite();
-            if (current != _lastWrite)
+            var previous = _lastWrite;
+            _lastWrite = current;
+            if (previous != null && previous != current)
             {
-                _lastWrite = current;
                 _changed();
             }
         }
