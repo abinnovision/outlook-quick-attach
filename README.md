@@ -22,7 +22,7 @@ and tick **Outlook Quick Attach**. If it is not listed, choose Disabled Items un
 
 **Update:** automatic at sign-in when your IT team provides updates. Otherwise install the newer MSI the same way.
 
-**Uninstall:** Settings > Apps > Installed apps > QuickAttach.
+**Uninstall:** Settings > Apps > Installed apps > Outlook Quick Attach.
 
 ## Configuration
 
