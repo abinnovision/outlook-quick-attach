@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=./node_modules/@tallyrelease/cli/dist/tallyrelease.schema.json
+plugins:
+  node: {}
+branches:
+  - { name: main, line: default }
+defaults:
+  initialVersion: 0.1.0
+units:
+  ".":
+    id: outlook-quick-attach
+    release: true
+    tags: [source]
+    versionFiles:
+      - { file: Directory.Build.props, pattern: "<Version>{version}</Version>" }
+ignore: ["vm/**", "docs/**", "e2e/**", "**/*.md", ".github/**"]
