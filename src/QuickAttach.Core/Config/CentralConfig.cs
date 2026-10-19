@@ -20,6 +20,7 @@ public sealed class CentralConfig
         Dictionary<string, IReadOnlyDictionary<string, object?>> users,
         string? msiPath,
         string? minVersion,
+        string? msiSha256,
         bool fromCache,
         bool readFailed)
     {
@@ -27,6 +28,7 @@ public sealed class CentralConfig
         _users = users;
         MsiPath = msiPath;
         MinVersion = minVersion;
+        MsiSha256 = msiSha256;
         FromCache = fromCache;
         ReadFailed = readFailed;
     }
@@ -42,6 +44,9 @@ public sealed class CentralConfig
     public string? MsiPath { get; }
 
     public string? MinVersion { get; }
+
+    /// <summary>Expected SHA-256 of the MSI at <see cref="MsiPath"/>, as hex.</summary>
+    public string? MsiSha256 { get; }
 
     /// <summary>True when the central file could not be read and the local cache was used.</summary>
     public bool FromCache { get; }
@@ -96,6 +101,7 @@ public sealed class CentralConfig
             users,
             (string?)update?["MsiPath"],
             (string?)update?["MinVersion"],
+            (string?)update?["MsiSha256"],
             fromCache,
             readFailed: fromCache);
     }
@@ -103,6 +109,7 @@ public sealed class CentralConfig
     private static CentralConfig CreateEmpty(bool readFailed) => new(
         EmptyLayer,
         new Dictionary<string, IReadOnlyDictionary<string, object?>>(StringComparer.OrdinalIgnoreCase),
+        null,
         null,
         null,
         fromCache: false,
