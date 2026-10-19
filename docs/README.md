@@ -1,14 +1,16 @@
 # QuickAttach
 
-Classic Outlook COM add-in that adds a "Letzte Dateien" gallery to the compose window and the inline reply.
-The gallery lists the newest files of a configured (network) folder and attaches the selected file.
+Classic Outlook COM add-in that adds a "Letzte Dateien" menu to the compose window and the inline reply.
+Like Outlook's Attach File > Recent Items, the menu lists the newest files of a configured (network) folder with
+the file type icon, the file name and a second line with folder and time, and attaches the selected file.
+`ShowThumbnails=false` hides the icons.
 
 ## Projects
 
 | Path                          | Target         | Purpose                                                   |
 | ----------------------------- | -------------- | --------------------------------------------------------- |
 | `src/QuickAttach.Core`         | netstandard2.0 | Config merge, central config, file listing, version rules |
-| `src/QuickAttach`              | net48          | COM add-in shell: ribbon, registry, watcher, thumbnails   |
+| `src/QuickAttach`              | net48          | COM add-in shell: ribbon, registry, watcher, file icons   |
 | `src/QuickAttach.Updater`      | net48          | Logon updater, installs a newer MSI from the share        |
 | `tests/QuickAttach.Core.Tests` | net10.0        | Unit tests for Core                                       |
 | `installer/`                  | WiX v6         | Per-user MSI, built on Windows only                       |
@@ -55,7 +57,7 @@ msiexec /i QuickAttach.msi /qn CONFIGPATH="\\filer01\it$\quickattach\config.json
 `GROUPLABEL` and `GALLERYLABEL` are optional fallbacks written to `HKCU\Software\abigroup\QuickAttach\Install`.
 
 Updates: copy a newer MSI to `update.MsiPath`. The updater installs it at the next logon, before Outlook starts.
-`update.MinVersion` above the installed version disables the gallery with "Bitte Update installieren".
+`update.MinVersion` above the installed version disables the menu with "Bitte Update installieren".
 
 ## Configuration
 
@@ -71,7 +73,7 @@ Each value is taken from the first source that sets it. The last good `config.js
 `%LocalAppData%\abigroup\QuickAttach\config.cache.json`. See `deploy/config.example.json` for a template.
 
 Labels update without a restart: `config.json` is polled every 60 s and the HKCU keys are watched.
-Folder, filter and limits are read on every gallery drop.
+Folder, filter and limits are read every time the menu opens.
 
 `TargetTab` (`Message` or `Insert`) is read only when Outlook starts, because the ribbon XML is fixed afterwards.
 

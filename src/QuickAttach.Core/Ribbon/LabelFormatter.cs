@@ -1,11 +1,15 @@
 using System.Globalization;
+using System.IO;
 using QuickAttach.Core.Files;
 
 namespace QuickAttach.Core.Ribbon;
 
 public static class LabelFormatter
 {
-    /// <summary>Gallery item label, e.g. "report.pdf  ·  19.10. 14:05".</summary>
-    public static string Format(FileItem item) =>
-        item.Name + "  ·  " + item.LastWrite.ToString("dd.MM. HH:mm", CultureInfo.InvariantCulture);
+    /// <summary>
+    /// Second menu line, e.g. "\\filer01\files\anna · 19.10. 14:05". Non-breaking spaces keep the timestamp
+    /// on the same line as the folder.
+    /// </summary>
+    public static string Describe(FileItem item) =>
+        Path.GetDirectoryName(item.FullPath) + "\u00A0·\u00A0" + item.LastWrite.ToString("dd.MM.\u00A0HH:mm", CultureInfo.InvariantCulture);
 }

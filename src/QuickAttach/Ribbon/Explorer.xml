@@ -6,18 +6,12 @@
       <tabSet idMso="TabComposeTools">
         <tab idMso="TabMessage">
           <group id="grpQuickAttach" getLabel="GetGroupLabel" insertAfterMso="GroupInclude">
-            <gallery id="galFiles"
-                     getLabel="GetGalleryLabel"
-                     getScreentip="GetGalleryScreentip"
-                     getEnabled="GetGalleryEnabled"
-                     size="large" imageMso="AttachFile" columns="1"
-                     showItemImage="true" invalidateContentOnDrop="true"
-                     getItemCount="GetItemCount" getItemLabel="GetItemLabel"
-                     getItemScreentip="GetItemScreentip" getItemImage="GetItemImage"
-                     onAction="OnFileSelected">
-              <button id="btnOpenFolder" label="Ordner öffnen…" onAction="OnOpenFolder"/>
-              <button id="btnSettings" label="Einstellungen…" onAction="OnSettings" getVisible="GetSettingsVisible"/>
-            </gallery>
+            <dynamicMenu id="mnuFiles"
+                       getLabel="GetGalleryLabel"
+                       getScreentip="GetGalleryScreentip"
+                       getEnabled="GetGalleryEnabled"
+                       size="large" imageMso="AttachFile"
+                       getContent="GetMenuContent" invalidateContentOnDrop="true"/>
           </group>
         </tab>
       </tabSet>

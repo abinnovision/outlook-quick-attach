@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -22,7 +23,6 @@ namespace QuickAttach;
 public class RibbonController : IRibbonExtensibility
 {
     private const string AddinProgId = "Abigroup.QuickAttach";
-    private const string UnreachableLabel = "Ordner nicht erreichbar";
     private const string BlockedLabel = "Bitte Update installieren";
     private const string UpdateHint = "Update wird beim nächsten Anmelden installiert";
     private static readonly TimeSpan ConfigCacheWindow = TimeSpan.FromSeconds(5);
@@ -84,37 +84,25 @@ public class RibbonController : IRibbonExtensibility
 
     public bool GetGalleryEnabled(IRibbonControl control) => Guard("GetGalleryEnabled", () => !IsBlocked(), true);
 
-    public int GetItemCount(IRibbonControl control)
+    public string GetMenuContent(IRibbonControl control)
     {
-        return Guard("GetItemCount", () =>
+        return Guard("GetMenuContent", () =>
         {
             var config = Current();
-            if (IsBlocked())
-            {
-                return 0;
-            }
-
-            _files = _repository.GetLatest(config);
-            return _files.Unreachable ? 1 : _files.Items.Count;
-        }, 0);
+            _files = IsBlocked() ? new FileResult(new FileItem[0], unreachable: false) : _repository.GetLatest(config);
+            return FileMenu.Build(_files, config.ShowThumbnails, config.AllowUserOverride);
+        }, FileMenu.Build(new FileResult(new FileItem[0], unreachable: true), showIcons: false, showSettings: false));
     }
 
-    public string GetItemLabel(IRibbonControl control, int index) =>
-        Guard("GetItemLabel", () => _files.Unreachable ? UnreachableLabel : LabelFormatter.Format(_files.Items[index]), "");
+    public object? GetFileImage(IRibbonControl control) =>
+        Guard("GetFileImage", () => FileIconProvider.Get(_files.Items[int.Parse(control.Tag, CultureInfo.InvariantCulture)].FullPath), null);
 
-    public string GetItemScreentip(IRibbonControl control, int index) =>
-        Guard("GetItemScreentip", () => _files.Unreachable ? _config.FolderPath : _files.Items[index].FullPath, "");
-
-    public object? GetItemImage(IRibbonControl control, int index) => Guard(
-        "GetItemImage",
-        () => _files.Unreachable || !_config.ShowThumbnails ? null : ThumbnailProvider.Get(_files.Items[index].FullPath, 64),
-        null);
-
-    public void OnFileSelected(IRibbonControl control, string selectedId, int selectedIndex)
+    public void OnFileClick(IRibbonControl control)
     {
-        Guard("OnFileSelected", () =>
+        Guard("OnFileClick", () =>
         {
-            if (_files.Unreachable || selectedIndex < 0 || selectedIndex >= _files.Items.Count)
+            var index = int.Parse(control.Tag, CultureInfo.InvariantCulture);
+            if (index < 0 || index >= _files.Items.Count)
             {
                 return;
             }
@@ -125,7 +113,7 @@ public class RibbonController : IRibbonExtensibility
                 Outlook.Explorer explorer => explorer.ActiveInlineResponse as Outlook.MailItem,
                 _ => null,
             };
-            mail?.Attachments.Add(_files.Items[selectedIndex].FullPath);
+            mail?.Attachments.Add(_files.Items[index].FullPath);
         });
     }
 
@@ -153,8 +141,6 @@ public class RibbonController : IRibbonExtensibility
             }
         });
     }
-
-    public bool GetSettingsVisible(IRibbonControl control) => Guard("GetSettingsVisible", () => Current().AllowUserOverride, false);
 
     private QuickAttachConfig Current()
     {

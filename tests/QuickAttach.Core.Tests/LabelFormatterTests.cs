@@ -6,10 +6,11 @@ namespace QuickAttach.Core.Tests;
 public class LabelFormatterTests
 {
     [Fact]
-    public void Format_ShowsNameAndShortTimestamp()
+    public void Describe_ShowsFolderAndShortTimestamp()
     {
-        var item = new FileItem(Path.Combine("files", "Report_0042.pdf"), new DateTime(2026, 3, 7, 9, 5, 0));
+        var folder = Path.Combine("files", "anna");
+        var item = new FileItem(Path.Combine(folder, "Report_0042.pdf"), new DateTime(2026, 3, 7, 9, 5, 0));
 
-        Assert.Equal("Report_0042.pdf  ·  07.03. 09:05", LabelFormatter.Format(item));
+        Assert.Equal(folder + "\u00A0·\u00A007.03.\u00A009:05", LabelFormatter.Describe(item));
     }
 }
