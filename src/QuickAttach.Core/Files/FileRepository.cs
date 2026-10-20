@@ -13,12 +13,21 @@ namespace QuickAttach.Core.Files;
 /// <summary>
 /// Lists the newest matching files of the configured folders, with a timeout and a short cache. An unreachable
 /// result is kept for longer and re-checked in the background, so the caller does not wait on every lookup.
+/// When a lookup times out after a reachable result, that result is kept while the background check runs.
 /// </summary>
 public sealed class FileRepository
 {
+    private const int MaxSkippedEntries = 1000;
+
     private static readonly TimeSpan CacheWindow = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan UnreachableWindow = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan MinFileAge = TimeSpan.FromSeconds(1);
+
+    // Shortcuts and shell files that point elsewhere or run code when opened.
+    private static readonly HashSet<string> BlockedExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".lnk", ".url", ".scf", ".library-ms", ".searchConnector-ms",
+    };
 
     private readonly TimeSpan _timeout;
     private readonly Func<DateTime> _utcNow;
@@ -26,6 +35,7 @@ public sealed class FileRepository
     private string? _cacheKey;
     private DateTime _cachedAt;
     private FileResult? _cached;
+    private bool _stale;
     private int _probing;
 
     /// <param name="timeout">Maximum time for one lookup, 2 s by default.</param>
@@ -47,9 +57,10 @@ public sealed class FileRepository
 
         lock (_lock)
         {
-            if (_cached != null && _cacheKey == key && now - _cachedAt < (_cached.Unreachable ? UnreachableWindow : CacheWindow))
+            var recheck = _cached != null && (_cached.Unreachable || _stale);
+            if (_cached != null && _cacheKey == key && now - _cachedAt < (recheck ? UnreachableWindow : CacheWindow))
             {
-                if (_cached.Unreachable)
+                if (recheck)
                 {
                     Probe(key, paths, config, now);
                 }
@@ -62,12 +73,18 @@ public sealed class FileRepository
 
         lock (_lock)
         {
+            var timedOut = result == null;
+            if (timedOut && _cached != null && _cacheKey == key && !_cached.Unreachable)
+            {
+                result = _cached;
+            }
+
             _cacheKey = key;
             _cachedAt = now;
-            _cached = result;
+            _cached = result ?? new FileResult(new FileItem[0], unreachable: true);
+            _stale = timedOut;
+            return _cached;
         }
-
-        return result;
     }
 
     /// <summary>Looks up the folders in the background, at most once at a time, and caches a reachable result.</summary>
@@ -86,8 +103,9 @@ public sealed class FileRepository
                     lock (_lock)
                     {
                         _cacheKey = key;
-                        _cachedAt = now;
+                        _cachedAt = _utcNow();
                         _cached = probe.Result;
+                        _stale = false;
                     }
                 }
 
@@ -96,7 +114,8 @@ public sealed class FileRepository
             TaskScheduler.Default);
     }
 
-    private FileResult Search(string[] paths, QuickAttachConfig config, DateTime now)
+    /// <summary>Returns null when the lookup timed out or failed.</summary>
+    private FileResult? Search(string[] paths, QuickAttachConfig config, DateTime now)
     {
         if (paths.Length == 0)
         {
@@ -106,11 +125,11 @@ public sealed class FileRepository
         var lookup = Task.Run(() => Enumerate(paths, config, now));
         try
         {
-            return lookup.Wait(_timeout) ? lookup.Result : new FileResult(new FileItem[0], unreachable: true);
+            return lookup.Wait(_timeout) ? lookup.Result : null;
         }
         catch (AggregateException)
         {
-            return new FileResult(new FileItem[0], unreachable: true);
+            return null;
         }
     }
 
@@ -125,7 +144,7 @@ public sealed class FileRepository
         {
             try
             {
-                files.AddRange(new DirectoryInfo(path).EnumerateFiles());
+                AddFiles(path, files);
             }
             catch (Exception e) when (e is IOException || e is UnauthorizedAccessException || e is ArgumentException)
             {
@@ -137,8 +156,10 @@ public sealed class FileRepository
             .Where(f => filters.Length == 0 || filters.Any(r => r.IsMatch(f.Name)))
             .Where(f => !f.Name.StartsWith("~$", StringComparison.Ordinal))
             .Where(f => !f.Name.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase))
+            .Where(f => !BlockedExtensions.Contains(f.Extension))
             .Where(f => !excludeHidden || (f.Attributes & FileAttributes.Hidden) == 0)
-            .Where(f => now - f.LastWriteTimeUtc >= MinFileAge)
+            // A file dated in the future (clock skew) is not treated as still being written.
+            .Where(f => !(now - f.LastWriteTimeUtc >= TimeSpan.Zero && now - f.LastWriteTimeUtc < MinFileAge))
             .Where(f => config.MaxAgeDays <= 0 || now - f.LastWriteTimeUtc <= TimeSpan.FromDays(config.MaxAgeDays))
             .GroupBy(f => Path.GetFullPath(f.FullName), StringComparer.OrdinalIgnoreCase)
             .Select(g => g.First())
@@ -148,6 +169,28 @@ public sealed class FileRepository
             .ToArray();
 
         return new FileResult(items, unreachable: failed == paths.Length);
+    }
+
+    /// <summary>Adds the files of one folder, skipping entries whose path is too long.</summary>
+    private static void AddFiles(string path, List<FileInfo> files)
+    {
+        using var entries = new DirectoryInfo(path).EnumerateFiles().GetEnumerator();
+        for (var skipped = 0; skipped < MaxSkippedEntries;)
+        {
+            try
+            {
+                if (!entries.MoveNext())
+                {
+                    return;
+                }
+
+                files.Add(entries.Current);
+            }
+            catch (PathTooLongException)
+            {
+                skipped++;
+            }
+        }
     }
 
     private static Regex ToRegex(string pattern) => new(

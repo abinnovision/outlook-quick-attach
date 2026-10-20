@@ -11,6 +11,7 @@ namespace QuickAttach.Core;
 public static class Log
 {
     private const long MaxSize = 1024 * 1024;
+    private static readonly object Gate = new();
 
     public static string FilePath { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "abigroup", "QuickAttach", "log.txt");
@@ -25,16 +26,19 @@ public static class Log
 
     private static void Write(string source, string message)
     {
-        try
+        lock (Gate)
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-            Rotate();
-            var line = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) + " [" + source + "] " + message;
-            File.AppendAllText(FilePath, line + Environment.NewLine);
-        }
-        catch (Exception)
-        {
-            // Logging is best effort.
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
+                Rotate();
+                var line = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) + " [" + source + "] " + message;
+                File.AppendAllText(FilePath, line + Environment.NewLine);
+            }
+            catch (Exception)
+            {
+                // Logging is best effort.
+            }
         }
     }
 
