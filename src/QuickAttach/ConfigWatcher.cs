@@ -47,6 +47,12 @@ internal sealed class ConfigWatcher : IDisposable
         try
         {
             var current = ReadLastWrite();
+            if (current == null)
+            {
+                // Unreachable: keep the baseline so a change made meanwhile is detected on return.
+                return;
+            }
+
             var previous = _lastWrite;
             _lastWrite = current;
             if (previous != null && previous != current)
@@ -104,10 +110,23 @@ internal sealed class ConfigWatcher : IDisposable
         }
     }
 
-    private static DateTime ReadLastWrite()
+    /// <summary>Returns null when the share cannot be read. CentralConfig logs that transition.</summary>
+    private static DateTime? ReadLastWrite()
     {
         var path = RegistrySource.ReadConfigPath();
-        return string.IsNullOrWhiteSpace(path) ? DateTime.MinValue : File.GetLastWriteTimeUtc(path);
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return DateTime.MinValue;
+        }
+
+        try
+        {
+            return File.GetLastWriteTimeUtc(path);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
     }
 
     [DllImport("advapi32.dll")]
