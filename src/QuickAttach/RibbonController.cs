@@ -6,6 +6,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 using Microsoft.Office.Core;
 using Microsoft.Win32;
 using QuickAttach.Core;
@@ -23,8 +24,6 @@ namespace QuickAttach;
 public class RibbonController : IRibbonExtensibility
 {
     private const string AddinProgId = "Abigroup.QuickAttach";
-    private const string BlockedLabel = "Please install the update";
-    private const string UpdateHint = "An update will be installed at next sign-in";
     private static readonly TimeSpan ConfigCacheWindow = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan CentralRetryWindow = TimeSpan.FromSeconds(60);
     private static readonly Version InstalledVersion = typeof(RibbonController).Assembly.GetName().Version;
@@ -33,20 +32,32 @@ public class RibbonController : IRibbonExtensibility
     private readonly FileRepository _repository = new();
     private SynchronizationContext? _ui;
     private ConfigWatcher? _watcher;
-    private CentralConfig _central = CentralConfig.Empty;
+    private volatile CentralConfig _central = CentralConfig.Empty;
+    private volatile bool _centralFailed;
+    private int _centralRefreshing;
+    private DateTime _centralCheckedAt = DateTime.MinValue;
     private QuickAttachConfig _config = new();
     private DateTime _loadedAt = DateTime.MinValue;
-    private DateTime _centralLoadedAt = DateTime.MinValue;
-    private bool _centralFailed;
     private FileResult _files = new(new FileItem[0], unreachable: false);
     private volatile bool _updateAvailable;
 
     protected void Start(SynchronizationContext ui)
     {
         _ui = ui;
-        _watcher = new ConfigWatcher(() => ui.Post(_ => Invalidate(), null));
+        // Start from the local cache; the share is read in the background.
+        _central = ConfigLoader.LoadCachedCentral();
+        _centralCheckedAt = DateTime.UtcNow;
+        _centralRefreshing = 1;
+        _watcher = new ConfigWatcher(() => ui.Post(
+            _ =>
+            {
+                _centralCheckedAt = DateTime.MinValue;
+                Invalidate();
+            },
+            null));
         Task.Run(() =>
         {
+            Guard("RefreshCentral", RefreshCentral);
             Guard("Startup", () =>
             {
                 KeepAddinEnabled();
@@ -75,11 +86,11 @@ public class RibbonController : IRibbonExtensibility
     public string GetGroupLabel(IRibbonControl control) => Guard("GetGroupLabel", () => Current().GroupLabel, "Quick Attach");
 
     public string GetGalleryLabel(IRibbonControl control) =>
-        Guard("GetGalleryLabel", () => IsBlocked() ? BlockedLabel : Current().GalleryLabel, "Recent Files");
+        Guard("GetGalleryLabel", () => IsBlocked() ? Strings.InstallUpdate : Current().GalleryLabel, "Recent Files");
 
     public string GetGalleryScreentip(IRibbonControl control) => Guard(
         "GetGalleryScreentip",
-        () => Current().GalleryScreentip + (_updateAvailable ? Environment.NewLine + UpdateHint : ""),
+        () => Current().GalleryScreentip + (_updateAvailable ? Environment.NewLine + Strings.UpdateAtNextSignIn : ""),
         "");
 
     public bool GetGalleryEnabled(IRibbonControl control) => Guard("GetGalleryEnabled", () => !IsBlocked(), true);
@@ -107,13 +118,40 @@ public class RibbonController : IRibbonExtensibility
                 return;
             }
 
-            var mail = control.Context switch
+            var file = _files.Items[index];
+            object? item = null;
+            Outlook.Attachments? attachments = null;
+            Outlook.Attachment? attachment = null;
+            try
             {
-                Outlook.Inspector inspector => inspector.CurrentItem as Outlook.MailItem,
-                Outlook.Explorer explorer => explorer.ActiveInlineResponse as Outlook.MailItem,
-                _ => null,
-            };
-            mail?.Attachments.Add(_files.Items[index].FullPath);
+                item = control.Context switch
+                {
+                    Outlook.Inspector inspector => inspector.CurrentItem,
+                    Outlook.Explorer explorer => explorer.ActiveInlineResponse,
+                    _ => null,
+                };
+                if (item is not Outlook.MailItem mail)
+                {
+                    return;
+                }
+
+                attachments = mail.Attachments;
+                try
+                {
+                    attachment = attachments.Add(file.FullPath);
+                }
+                catch (Exception e)
+                {
+                    Log.Error("OnFileClick", "Could not attach " + file.FullPath, e);
+                    MessageBox.Show(Strings.AttachFailed(file.Name), Strings.AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            }
+            finally
+            {
+                Release(attachment);
+                Release(attachments);
+                Release(item);
+            }
         });
     }
 
@@ -142,31 +180,52 @@ public class RibbonController : IRibbonExtensibility
         });
     }
 
+    /// <summary>
+    /// Resolves from the in-memory central config and the registry; never reads the share. When the central config
+    /// is stale (longer after a failed read), one background refresh starts.
+    /// </summary>
     private QuickAttachConfig Current()
     {
-        // Several callbacks fire per refresh; reuse the loaded config briefly. After a failed
-        // central read, keep the last result for longer so the UI thread does not wait on every refresh.
         var now = DateTime.UtcNow;
+        if (now - _centralCheckedAt > (_centralFailed ? CentralRetryWindow : ConfigCacheWindow)
+            && Interlocked.CompareExchange(ref _centralRefreshing, 1, 0) == 0)
+        {
+            _centralCheckedAt = now;
+            Task.Run(() => Guard("RefreshCentral", RefreshCentral));
+        }
+
+        // Several callbacks fire per ribbon refresh; reuse the resolved config briefly.
         if (now - _loadedAt > ConfigCacheWindow)
         {
-            if (now - _centralLoadedAt > (_centralFailed ? CentralRetryWindow : ConfigCacheWindow))
-            {
-                var central = ConfigLoader.LoadCentral();
-                _centralFailed = central.ReadFailed;
-                if (!central.ReadFailed || central.FromCache)
-                {
-                    // Without file and cache, the last good config stays in use.
-                    _central = central;
-                }
-
-                _centralLoadedAt = now;
-            }
-
             _config = ConfigLoader.Resolve(_central);
             _loadedAt = now;
         }
 
         return _config;
+    }
+
+    /// <summary>Reads the central config on a background thread and refreshes the ribbon when its content changed.</summary>
+    private void RefreshCentral()
+    {
+        try
+        {
+            var central = ConfigLoader.LoadCentral();
+            _centralFailed = central.ReadFailed;
+            if (!central.ReadFailed || central.FromCache)
+            {
+                // Without file and cache, the last good config stays in use.
+                var previous = _central;
+                _central = central;
+                if (!central.HasSameContent(previous))
+                {
+                    _ui?.Post(_ => Invalidate(), null);
+                }
+            }
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _centralRefreshing, 0);
+        }
     }
 
     private bool IsBlocked()
@@ -178,7 +237,6 @@ public class RibbonController : IRibbonExtensibility
     private void Invalidate()
     {
         _loadedAt = DateTime.MinValue;
-        _centralLoadedAt = DateTime.MinValue;
         foreach (var ribbon in _ribbons)
         {
             ribbon.Invalidate();
@@ -187,7 +245,7 @@ public class RibbonController : IRibbonExtensibility
 
     private void CheckForUpdate()
     {
-        var msiPath = ConfigLoader.LoadCentral().MsiPath;
+        var msiPath = _central.MsiPath;
         if (string.IsNullOrWhiteSpace(msiPath))
         {
             return;
@@ -205,6 +263,14 @@ public class RibbonController : IRibbonExtensibility
     {
         using var key = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Office\16.0\Outlook\Resiliency\DoNotDisableAddinList");
         key.SetValue(AddinProgId, 1, RegistryValueKind.DWord);
+    }
+
+    private static void Release(object? comObject)
+    {
+        if (comObject != null && Marshal.IsComObject(comObject))
+        {
+            Marshal.ReleaseComObject(comObject);
+        }
     }
 
     private static string ReadRibbon(string name)

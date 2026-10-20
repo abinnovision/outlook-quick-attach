@@ -104,8 +104,9 @@ share is not reachable.
 
 Changes apply as follows:
 
-- Folder, filter, limits and the menu contents: every time the menu opens.
-- Labels: within 60 seconds (`config.json` is polled, HKCU keys are watched).
+- Folder, filter, limits and the menu contents: every time the menu opens. After "Folder not reachable", the menu
+  shows that result for up to 30 seconds while the folder is checked again in the background.
+- Labels: within 60 seconds (`config.json` is polled and read in the background, HKCU keys are watched).
 - `TargetTab`: when Outlook starts.
 
 ## Deployment (IT)
@@ -188,7 +189,12 @@ dotnet build installer\QuickAttach.Installer.wixproj -c Release -p:Version=0.1.0
 
 ## Troubleshooting
 
-- Log file: `%LocalAppData%\abigroup\QuickAttach\log.txt` (add-in and updater).
+- Log file: `%LocalAppData%\abigroup\QuickAttach\log.txt` (add-in and updater). Above 1 MB it moves to `log.old.txt`,
+  which replaces the previous one.
+- An invalid `config.json` (or cache) is logged with the file path and the parse error; the add-in falls back to the
+  cached copy. An unreachable `config.json` is logged once until it can be read again.
+- Language: menu entries, messages and the settings dialog follow the Windows display language (English or German).
+  Configurable labels such as `GroupLabel` are used as set.
 - Add-in disabled by Outlook: check `LoadBehavior` (3) under
   `HKCU\Software\Microsoft\Office\Outlook\Addins\Abigroup.QuickAttach`. The add-in rewrites `DoNotDisableAddinList` at
   every start.

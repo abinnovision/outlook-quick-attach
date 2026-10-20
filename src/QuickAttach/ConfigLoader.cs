@@ -11,6 +11,10 @@ internal static class ConfigLoader
     public static CentralConfig LoadCentral() =>
         CentralConfig.LoadWithCache(RegistrySource.ReadConfigPath(), CentralConfig.DefaultCachePath, CentralTimeout);
 
+    /// <summary>Local cache only, without touching the share.</summary>
+    public static CentralConfig LoadCachedCentral() =>
+        string.IsNullOrWhiteSpace(RegistrySource.ReadConfigPath()) ? CentralConfig.Empty : CentralConfig.LoadCache(CentralConfig.DefaultCachePath);
+
     public static QuickAttachConfig Resolve(CentralConfig central) => ConfigResolver.Resolve(
         new[]
         {

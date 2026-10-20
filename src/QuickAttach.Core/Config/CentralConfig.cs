@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 
@@ -13,7 +14,10 @@ public sealed class CentralConfig
     private static readonly IReadOnlyDictionary<string, object?> EmptyLayer =
         new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
 
+    private static int _centralUnreachable;
+
     private readonly Dictionary<string, IReadOnlyDictionary<string, object?>> _users;
+    private readonly string? _json;
 
     private CentralConfig(
         IReadOnlyDictionary<string, object?> defaults,
@@ -22,8 +26,10 @@ public sealed class CentralConfig
         string? minVersion,
         string? msiSha256,
         bool fromCache,
-        bool readFailed)
+        bool readFailed,
+        string? json)
     {
+        _json = json;
         Defaults = defaults;
         _users = users;
         MsiPath = msiPath;
@@ -58,6 +64,9 @@ public sealed class CentralConfig
     public IReadOnlyDictionary<string, object?> ForUser(string userName) =>
         _users.TryGetValue(userName, out var layer) ? layer : EmptyLayer;
 
+    /// <summary>True when both configs were parsed from the same JSON text, or both are empty.</summary>
+    public bool HasSameContent(CentralConfig other) => _json == other._json;
+
     /// <summary>
     /// Reads the central file within the timeout and refreshes the cache on success.
     /// Falls back to the cache when the file is unreachable or invalid, and to <see cref="Empty"/> without either.
@@ -70,7 +79,20 @@ public sealed class CentralConfig
         }
 
         var json = TryRead(configPath!, timeout);
-        var config = json == null ? null : TryParse(json, fromCache: false);
+        if (json == null)
+        {
+            // Log only the change from reachable to unreachable, not every retry.
+            if (Interlocked.Exchange(ref _centralUnreachable, 1) == 0)
+            {
+                Log.Info("Config", "Central config not reachable: " + configPath);
+            }
+        }
+        else
+        {
+            Interlocked.Exchange(ref _centralUnreachable, 0);
+        }
+
+        var config = json == null ? null : TryParse(json, fromCache: false, configPath!);
         if (config != null)
         {
             TryWriteCache(cachePath, json!);
@@ -78,7 +100,23 @@ public sealed class CentralConfig
         }
 
         var cached = TryRead(cachePath, timeout);
-        return (cached == null ? null : TryParse(cached, fromCache: true)) ?? CreateEmpty(readFailed: true);
+        return (cached == null ? null : TryParse(cached, fromCache: true, cachePath)) ?? CreateEmpty(readFailed: true);
+    }
+
+    /// <summary>Reads only the local cache, or returns <see cref="Empty"/> when it is missing or invalid.</summary>
+    public static CentralConfig LoadCache(string cachePath)
+    {
+        string json;
+        try
+        {
+            json = File.ReadAllText(cachePath);
+        }
+        catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+        {
+            return Empty;
+        }
+
+        return TryParse(json, fromCache: true, cachePath) ?? Empty;
     }
 
     public static CentralConfig Parse(string json) => Parse(json, fromCache: false);
@@ -103,7 +141,8 @@ public sealed class CentralConfig
             (string?)update?["MinVersion"],
             (string?)update?["MsiSha256"],
             fromCache,
-            readFailed: fromCache);
+            readFailed: fromCache,
+            json);
     }
 
     private static CentralConfig CreateEmpty(bool readFailed) => new(
@@ -113,16 +152,18 @@ public sealed class CentralConfig
         null,
         null,
         fromCache: false,
-        readFailed);
+        readFailed,
+        json: null);
 
-    private static CentralConfig? TryParse(string json, bool fromCache)
+    private static CentralConfig? TryParse(string json, bool fromCache, string path)
     {
         try
         {
             return Parse(json, fromCache);
         }
-        catch (Exception)
+        catch (Exception e)
         {
+            Log.Error("Config", "Invalid config " + path, e);
             return null;
         }
     }
