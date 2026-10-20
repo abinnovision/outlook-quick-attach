@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using Microsoft.Win32;
 using QuickAttach.Core;
 using QuickAttach.Core.Config;
@@ -17,7 +18,7 @@ internal static class Program
     {
         try
         {
-            if (Process.GetProcessesByName("OUTLOOK").Length > 0)
+            if (IsOutlookRunning())
             {
                 Log.Info(Source, "Outlook is running, update skipped.");
                 return 0;
@@ -27,6 +28,12 @@ internal static class Program
             var central = CentralConfig.LoadWithCache(key?.GetValue("ConfigPath") as string, CentralConfig.DefaultCachePath, TimeSpan.FromSeconds(10));
             if (string.IsNullOrWhiteSpace(central.MsiPath))
             {
+                return 0;
+            }
+
+            if (string.IsNullOrWhiteSpace(central.MsiSha256))
+            {
+                Log.Info(Source, "update.MsiSha256 missing, update skipped.");
                 return 0;
             }
 
@@ -44,9 +51,16 @@ internal static class Program
             }
 
             // Check and install a local copy, so the file on the share cannot change after verification.
+            // The hash is checked before msi.dll opens the package.
             var sharePath = Environment.ExpandEnvironmentVariables(central.MsiPath);
             var msiPath = Path.Combine(Path.GetTempPath(), "QuickAttach-update-" + Guid.NewGuid().ToString("N") + ".msi");
             File.Copy(sharePath, msiPath);
+            if (!MsiHash.IsAllowed(central.MsiSha256, MsiHash.Compute(msiPath)))
+            {
+                Log.Info(Source, "MSI hash does not match update.MsiSha256, update skipped: " + sharePath);
+                return 0;
+            }
+
             var msiVersion = MsiPackage.ReadProductVersion(msiPath);
             var installed = typeof(Program).Assembly.GetName().Version;
             if (!VersionPolicy.IsUpdateAvailable(installed, msiVersion))
@@ -54,9 +68,10 @@ internal static class Program
                 return 0;
             }
 
-            if (!MsiHash.IsAllowed(central.MsiSha256, MsiHash.Compute(msiPath)))
+            // Outlook may have started while the MSI was copied and checked.
+            if (IsOutlookRunning())
             {
-                Log.Info(Source, "MSI hash does not match update.MsiSha256, update skipped: " + sharePath);
+                Log.Info(Source, "Outlook is running, update skipped.");
                 return 0;
             }
 
@@ -75,5 +90,24 @@ internal static class Program
         }
 
         return 0;
+    }
+
+    /// <summary>True when Outlook runs in the current session; other users on the same machine do not count.</summary>
+    private static bool IsOutlookRunning()
+    {
+        using var current = Process.GetCurrentProcess();
+        var session = current.SessionId;
+        var processes = Process.GetProcessesByName("OUTLOOK");
+        try
+        {
+            return processes.Any(p => p.SessionId == session);
+        }
+        finally
+        {
+            foreach (var process in processes)
+            {
+                process.Dispose();
+            }
+        }
     }
 }

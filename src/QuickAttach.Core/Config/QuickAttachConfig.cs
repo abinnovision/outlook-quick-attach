@@ -17,4 +17,7 @@ public sealed class QuickAttachConfig
     public int MaxAgeDays { get; set; }
     public IReadOnlyList<string> FileFilter { get; set; } = DefaultFileFilter;
     public bool ShowThumbnails { get; set; } = true;
+
+    /// <summary>Configuration problems found while loading, prefixed with their source.</summary>
+    public IReadOnlyList<string> Warnings { get; set; } = new string[0];
 }

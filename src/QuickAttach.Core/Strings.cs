@@ -17,6 +17,10 @@ public static class Strings
 
     public static string FolderNotReachable => German ? "Ordner nicht erreichbar" : "Folder not reachable";
 
+    public static string MenuError => German ? "Fehler, siehe Protokoll" : "Error, see log";
+
+    public static string ConfigProblem => German ? "Konfigurationsproblem, siehe Protokoll" : "Configuration problem, see log";
+
     public static string InstallUpdate => German ? "Bitte installieren Sie das Update" : "Please install the update";
 
     public static string UpdateAtNextSignIn =>
@@ -33,6 +37,9 @@ public static class Strings
     public static string NumberOfFiles => German ? "Anzahl Dateien" : "Number of files";
 
     public static string Cancel => German ? "Abbrechen" : "Cancel";
+
+    public static string SettingsSaveFailed =>
+        German ? "Die Einstellungen konnten nicht gespeichert werden." : "The settings could not be saved.";
 
     public static string AttachFailed(string fileName) => German
         ? "\"" + fileName + "\" konnte nicht angehängt werden. Die Datei wurde möglicherweise verschoben, gelöscht oder wird gerade verwendet."

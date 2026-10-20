@@ -11,8 +11,9 @@ public class MsiHashTests
     [InlineData("BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD", true)]
     [InlineData(" " + AbcSha256 + " ", true)]
     [InlineData("0000000000000000000000000000000000000000000000000000000000000000", false)]
-    [InlineData(null, true)]
-    [InlineData("", true)]
+    [InlineData(null, false)]
+    [InlineData("", false)]
+    [InlineData("  ", false)]
     public void IsAllowed_ComparesPinnedHash(string? expected, bool allowed)
     {
         Assert.Equal(allowed, MsiHash.IsAllowed(expected, AbcSha256));

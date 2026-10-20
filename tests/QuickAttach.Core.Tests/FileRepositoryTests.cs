@@ -208,4 +208,52 @@ public class FileRepositoryTests
         Assert.False(result.Unreachable);
         Assert.Empty(result.Items);
     }
+
+    [Fact]
+    public void GetLatest_SkipsShortcutsRegardlessOfFilter()
+    {
+        using var dir = new TempDir();
+        dir.WriteFile("report.pdf", Now.AddMinutes(-1));
+        foreach (var name in new[] { "a.lnk", "b.URL", "c.scf", "d.library-ms", "e.searchConnector-ms" })
+        {
+            dir.WriteFile(name, Now.AddMinutes(-1));
+        }
+
+        var result = Repository().GetLatest(new QuickAttachConfig { FolderPath = dir.Path, FileFilter = ["*"] });
+
+        Assert.Equal(["report.pdf"], Names(result));
+    }
+
+    [Fact]
+    public void GetLatest_KeepsFilesDatedInTheFuture()
+    {
+        using var dir = new TempDir();
+        dir.WriteFile("future.pdf", Now.AddMinutes(5));
+
+        var result = Repository().GetLatest(new QuickAttachConfig { FolderPath = dir.Path, MaxAgeDays = 7 });
+
+        Assert.Equal(["future.pdf"], Names(result));
+    }
+
+    [Fact]
+    public void GetLatest_TimeoutAfterReachableResult_KeepsThatResult()
+    {
+        using var dir = new TempDir();
+        dir.WriteFile("report.pdf", Now.AddMinutes(-1));
+        var now = Now;
+        // Every foreground lookup times out, so only the background probe can find files.
+        var repository = Repository(() => now, TimeSpan.Zero);
+        var config = new QuickAttachConfig { FolderPath = dir.Path };
+        repository.GetLatest(config);
+        now = Now.AddSeconds(1);
+        Assert.True(
+            SpinWait.SpinUntil(() => !repository.GetLatest(config).Unreachable, TimeSpan.FromSeconds(5)),
+            "background probe did not recover");
+
+        now = Now.AddSeconds(10);
+        var result = repository.GetLatest(config);
+
+        Assert.False(result.Unreachable);
+        Assert.Equal(["report.pdf"], Names(result));
+    }
 }

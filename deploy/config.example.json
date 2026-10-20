@@ -12,6 +12,7 @@
   },
   "update": {
     "MsiPath": "\\\\filer01\\it$\\quickattach\\QuickAttach.msi",
-    "MinVersion": "0.1.0"
+    "MinVersion": "0.1.0",
+    "MsiSha256": "<sha256 of QuickAttach.msi from SHA256SUMS>"
   }
 }
