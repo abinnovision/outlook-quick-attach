@@ -145,7 +145,8 @@ that copy and installs it only on a match. Without `update.MsiSha256` it install
   `QuickAttach-<version>`, versioned `<package.json version>.<run number>` (e.g. `0.1.0.57`). A newer dev build of the
   same release upgrades in place.
 
-Each build ships a `SHA256SUMS` file and a GitHub build provenance attestation. Builds are not code-signed, so Outlook
+Each build ships a `SHA256SUMS` file. Builds from `main` and releases also carry a GitHub build provenance attestation;
+pull request builds do not. Builds are not code-signed, so Outlook
 shows the add-in's publisher as `<None>` and SmartScreen may warn when the MSI is downloaded from the internet.
 
 ### Verify a download
@@ -156,11 +157,13 @@ Compare the hash with the matching line in `SHA256SUMS`:
 (Get-FileHash QuickAttach.msi -Algorithm SHA256).Hash.ToLower()
 ```
 
-Check that the file was built by this repository's CI ([GitHub CLI](https://cli.github.com/)):
+Check that the file was built by this repository's CI on `main` ([GitHub CLI](https://cli.github.com/)):
 
 ```sh
-gh attestation verify QuickAttach.msi -R abinnovision/outlook-quick-attach
+gh attestation verify QuickAttach.msi --repo abinnovision/outlook-quick-attach --source-ref refs/heads/main
 ```
+
+Releases are built by the same workflow run on `main`, so the command is the same for dev builds and releases.
 
 ## Development
 
