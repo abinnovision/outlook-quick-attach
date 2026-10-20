@@ -15,7 +15,7 @@ public static class MsiHash
         return BitConverter.ToString(sha.ComputeHash(stream)).Replace("-", string.Empty).ToLowerInvariant();
     }
 
-    /// <summary>True when no hash is pinned or the pinned hash equals the actual one (case-insensitive).</summary>
+    /// <summary>True when a hash is pinned and equals the actual one (case-insensitive). A missing pin never allows.</summary>
     public static bool IsAllowed(string? expected, string actual) =>
-        string.IsNullOrWhiteSpace(expected) || string.Equals(expected!.Trim(), actual, StringComparison.OrdinalIgnoreCase);
+        !string.IsNullOrWhiteSpace(expected) && string.Equals(expected!.Trim(), actual, StringComparison.OrdinalIgnoreCase);
 }
