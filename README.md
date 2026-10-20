@@ -72,10 +72,11 @@ Built-in defaults apply to keys that are not set, except `FolderPath` and `Addit
 | `users`             | object  | none                                             | Per-user keys, matched by user name (case-insensitive)                  |
 | `update.MsiPath`    | string  | none                                             | MSI the logon updater installs                                          |
 | `update.MinVersion` | string  | none                                             | Minimum version; older installs disable the menu                        |
-| `update.MsiSha256`  | string  | none                                             | Expected SHA-256 of the MSI; the updater skips an MSI that differs      |
+| `update.MsiSha256`  | string  | none                                             | Required with `MsiPath`: SHA-256 of the MSI; without a match no update  |
 
 Lists (`AdditionalPaths`, `FileFilter`) accept a `;`-separated string or a JSON array. Booleans accept `true`/`false`
-or `1`/`0`.
+or `1`/`0`. `FolderPath` and `AdditionalPaths` entries must be absolute (`\\server\share\...` or `X:\...`) after
+expansion. Shortcuts (`.lnk`, `.url`, `.scf`, `.library-ms`, `.searchConnector-ms`) are never listed.
 
 ### How the effective configuration is built
 
@@ -98,8 +99,13 @@ built-in default.
 
 User settings come from Settings… in the menu. Values that `config.json` sets are greyed out there, so the dialog
 cannot change them. This is not a security boundary: every source lives in places the user can write (HKCU, and the
-`ConfigPath` value that points to `config.json`), so a determined user can change their own setup. Unknown keys are
-ignored.
+`ConfigPath` value that points to `config.json`), so a determined user can change their own setup.
+
+Problems do not stop the add-in. Unknown keys, values of the wrong type, relative paths and a `TargetTab` other than
+`Message` or `Insert` are ignored, so the next source or the built-in default applies. Out-of-range numbers are clamped
+(`MaxItems` to 1 to 30, `MaxAgeDays` to 0 to 36500). Each problem is written to the log with its source, and the menu
+tooltip then ends with "Configuration problem, see log" and the log path. The same happens when `config.json` is not
+valid JSON.
 
 The last good `config.json` is cached in `%LocalAppData%\abigroup\QuickAttach\config.cache.json` and used when the
 share is not reachable.
@@ -134,9 +140,12 @@ msiexec /i QuickAttach.msi /qn CONFIGPATH="\\filer01\it$\quickattach\config.json
 Updates: copy a newer MSI to `update.MsiPath`. The updater installs it at the next logon, before Outlook starts.
 `update.MinVersion` above the installed version disables the menu with "Please install the update".
 
-To pin the update, verify the release with `gh attestation verify` (see [Verify a download](#verify-a-download)), then
-put its SHA-256 from `SHA256SUMS` into `update.MsiSha256`. The updater copies the MSI to `%TEMP%`, checks the hash of
-that copy and installs it only on a match. Without `update.MsiSha256` it installs any newer MSI.
+`update.MsiSha256` is required. Verify the release with `gh attestation verify` (see
+[Verify a download](#verify-a-download)), then put its SHA-256 from `SHA256SUMS` into `update.MsiSha256`, or compute it
+with `(Get-FileHash QuickAttach.msi -Algorithm SHA256).Hash`. The updater copies the MSI to `%TEMP%`, checks the hash of
+that copy before it opens the package and installs it only on a match. Without `update.MsiSha256` it logs
+"update.MsiSha256 missing, update skipped" and installs nothing. The "update at next sign-in" hint in the add-in also
+appears only for a matching MSI.
 
 ## Builds
 
@@ -193,8 +202,13 @@ dotnet build installer\QuickAttach.Installer.wixproj -c Release -p:Version=0.1.0
 
 - Log file: `%LocalAppData%\abigroup\QuickAttach\log.txt` (add-in and updater). Above 1 MB it moves to `log.old.txt`,
   which replaces the previous one.
-- An invalid `config.json` (or cache) is logged with the file path and the parse error; the add-in falls back to the
-  cached copy. An unreachable `config.json` is logged once until it can be read again.
+- An invalid `config.json` (or cache) is logged with the file path and the parse error once per change; the add-in
+  falls back to the cached copy. An unreachable `config.json` is logged once until it can be read again. Files larger
+  than 1 MB are skipped.
+- "Configuration problem, see log" in the menu tooltip: the log lists each problem with its source, e.g.
+  `config.json defaults: MaxItems 50 is outside 1 to 30, using 30`.
+- "Error, see log" in the menu: building the file list failed; the log has the exception.
+- No update at sign-in: check the log for "update.MsiSha256 missing" or "MSI hash does not match".
 - Language: menu entries, messages and the settings dialog follow the Windows display language (English or German).
   Configurable labels such as `GroupLabel` are used as set.
 - Add-in disabled by Outlook: check `LoadBehavior` (3) under
