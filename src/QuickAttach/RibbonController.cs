@@ -90,11 +90,22 @@ public class RibbonController : IRibbonExtensibility
         () =>
         {
             var config = Current();
-            return config.GalleryScreentip
-                + (_updateAvailable ? Environment.NewLine + Strings.UpdateAtNextSignIn : "")
-                + (config.Warnings.Count > 0 ? Environment.NewLine + Strings.ConfigProblem + ": " + Log.FilePath : "");
+            // Office drops line breaks in the screentip, so the parts are joined with sentence breaks.
+            var tip = config.GalleryScreentip;
+            if (_updateAvailable)
+            {
+                tip = AppendSentence(tip, Strings.UpdateAtNextSignIn);
+            }
+
+            return config.Warnings.Count > 0 ? AppendSentence(tip, Strings.ConfigProblem + ": " + Log.FilePath) : tip;
         },
         "");
+
+    private static string AppendSentence(string text, string addition)
+    {
+        var trimmed = text.TrimEnd();
+        return trimmed.Length == 0 ? addition : trimmed + (".!?:;".Contains(trimmed[trimmed.Length - 1]) ? " " : ". ") + addition;
+    }
 
     public bool GetGalleryEnabled(IRibbonControl control) => Guard("GetGalleryEnabled", () => !IsBlocked(), true);
 
