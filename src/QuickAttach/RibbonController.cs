@@ -101,8 +101,8 @@ public class RibbonController : IRibbonExtensibility
         {
             var config = Current();
             _files = IsBlocked() ? new FileResult(new FileItem[0], unreachable: false) : _repository.GetLatest(config);
-            return FileMenu.Build(_files, config.ShowThumbnails, config.AllowUserOverride);
-        }, FileMenu.Build(new FileResult(new FileItem[0], unreachable: true), showIcons: false, showSettings: false));
+            return FileMenu.Build(_files, config.ShowThumbnails);
+        }, FileMenu.Build(new FileResult(new FileItem[0], unreachable: true), showIcons: false));
     }
 
     public object? GetFileImage(IRibbonControl control) =>

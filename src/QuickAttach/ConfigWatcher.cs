@@ -10,7 +10,7 @@ namespace QuickAttach;
 
 /// <summary>
 /// Signals configuration changes: polls the central config.json every 60 s (SMB change events are unreliable)
-/// and waits for changes of the HKCU keys on background threads. The parent keys are watched because
+/// and waits for changes of the HKCU keys on a background thread. The parent key is watched because
 /// the QuickAttach keys may not exist yet.
 /// </summary>
 internal sealed class ConfigWatcher : IDisposable
@@ -29,10 +29,7 @@ internal sealed class ConfigWatcher : IDisposable
         _changed = changed;
         // The first poll runs at once on the timer thread and only records the baseline.
         _timer = new Timer(_ => Poll(), null, TimeSpan.Zero, PollInterval);
-        foreach (var subKey in new[] { @"Software\abigroup", @"Software\Policies" })
-        {
-            new Thread(() => WatchKey(subKey)) { IsBackground = true, Name = "QuickAttach registry watcher" }.Start();
-        }
+        new Thread(() => WatchKey(@"Software\abigroup")) { IsBackground = true, Name = "QuickAttach registry watcher" }.Start();
     }
 
     public void Dispose()

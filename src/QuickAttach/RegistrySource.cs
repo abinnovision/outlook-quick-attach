@@ -8,7 +8,6 @@ namespace QuickAttach;
 internal static class RegistrySource
 {
     public const string RootKey = @"Software\abigroup\QuickAttach";
-    public const string PolicyKey = @"Software\Policies\abigroup\QuickAttach";
     public const string UserKey = RootKey + @"\User";
     public const string InstallKey = RootKey + @"\Install";
 
