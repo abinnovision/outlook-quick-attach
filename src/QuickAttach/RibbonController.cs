@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -38,8 +38,8 @@ public class RibbonController : IRibbonExtensibility
     private DateTime _centralCheckedAt = DateTime.MinValue;
     private QuickAttachConfig _config = new();
     private DateTime _loadedAt = DateTime.MinValue;
-    private FileResult _files = new(new FileItem[0], unreachable: false);
     private volatile bool _updateAvailable;
+    private string _loggedWarnings = "";
 
     protected void Start(SynchronizationContext ui)
     {
@@ -49,20 +49,17 @@ public class RibbonController : IRibbonExtensibility
         _centralCheckedAt = DateTime.UtcNow;
         _centralRefreshing = 1;
         _watcher = new ConfigWatcher(() => ui.Post(
-            _ =>
+            _ => Guard("ConfigChanged", () =>
             {
                 _centralCheckedAt = DateTime.MinValue;
                 Invalidate();
-            },
+            }),
             null));
         Task.Run(() =>
         {
             Guard("RefreshCentral", RefreshCentral);
-            Guard("Startup", () =>
-            {
-                KeepAddinEnabled();
-                CheckForUpdate();
-            });
+            Guard("KeepAddinEnabled", KeepAddinEnabled);
+            Guard("CheckForUpdate", CheckForUpdate);
         });
     }
 
@@ -90,7 +87,13 @@ public class RibbonController : IRibbonExtensibility
 
     public string GetGalleryScreentip(IRibbonControl control) => Guard(
         "GetGalleryScreentip",
-        () => Current().GalleryScreentip + (_updateAvailable ? Environment.NewLine + Strings.UpdateAtNextSignIn : ""),
+        () =>
+        {
+            var config = Current();
+            return config.GalleryScreentip
+                + (_updateAvailable ? Environment.NewLine + Strings.UpdateAtNextSignIn : "")
+                + (config.Warnings.Count > 0 ? Environment.NewLine + Strings.ConfigProblem + ": " + Log.FilePath : "");
+        },
         "");
 
     public bool GetGalleryEnabled(IRibbonControl control) => Guard("GetGalleryEnabled", () => !IsBlocked(), true);
@@ -100,25 +103,25 @@ public class RibbonController : IRibbonExtensibility
         return Guard("GetMenuContent", () =>
         {
             var config = Current();
-            _files = IsBlocked() ? new FileResult(new FileItem[0], unreachable: false) : _repository.GetLatest(config);
-            return FileMenu.Build(_files, config.ShowThumbnails);
-        }, FileMenu.Build(new FileResult(new FileItem[0], unreachable: true), showIcons: false));
+            var files = IsBlocked() ? new FileResult(new FileItem[0], unreachable: false) : _repository.GetLatest(config);
+            return FileMenu.Build(files, config.ShowThumbnails);
+        }, FileMenu.BuildError());
     }
 
-    public object? GetFileImage(IRibbonControl control) =>
-        Guard("GetFileImage", () => FileIconProvider.Get(_files.Items[int.Parse(control.Tag, CultureInfo.InvariantCulture)].FullPath), null);
+    /// <summary>The tag holds the full path of the file.</summary>
+    public object? GetFileImage(IRibbonControl control) => Guard("GetFileImage", () => FileIconProvider.Get(control.Tag), null);
 
+    /// <summary>Attaches the file whose full path is in the tag, so a list changed in another window cannot pick a different file.</summary>
     public void OnFileClick(IRibbonControl control)
     {
         Guard("OnFileClick", () =>
         {
-            var index = int.Parse(control.Tag, CultureInfo.InvariantCulture);
-            if (index < 0 || index >= _files.Items.Count)
+            var path = control.Tag;
+            if (string.IsNullOrEmpty(path))
             {
                 return;
             }
 
-            var file = _files.Items[index];
             object? item = null;
             Outlook.Attachments? attachments = null;
             Outlook.Attachment? attachment = null;
@@ -138,12 +141,12 @@ public class RibbonController : IRibbonExtensibility
                 attachments = mail.Attachments;
                 try
                 {
-                    attachment = attachments.Add(file.FullPath);
+                    attachment = attachments.Add(path);
                 }
                 catch (Exception e)
                 {
-                    Log.Error("OnFileClick", "Could not attach " + file.FullPath, e);
-                    MessageBox.Show(Strings.AttachFailed(file.Name), Strings.AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    Log.Error("OnFileClick", "Could not attach " + path, e);
+                    MessageBox.Show(OwnerOf(control), Strings.AttachFailed(Path.GetFileName(path)), Strings.AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 }
             }
             finally
@@ -159,11 +162,18 @@ public class RibbonController : IRibbonExtensibility
     {
         Guard("OnOpenFolder", () =>
         {
-            var path = Current().FolderPath;
-            if (path.Length > 0)
+            var config = Current();
+            var paths = new[] { config.FolderPath }.Concat(config.AdditionalPaths).ToArray();
+            // Directory.Exists can block on an unreachable share, so the check runs in the background.
+            Task.Run(() => Guard("OnOpenFolder", () =>
             {
-                Process.Start("explorer.exe", "\"" + path + "\"");
-            }
+                // A quote would end the quoted argument early.
+                var path = paths.FirstOrDefault(p => p.Length > 0 && p.IndexOf('"') < 0 && Directory.Exists(p));
+                if (path != null)
+                {
+                    Process.Start("explorer.exe", "\"" + path + "\"")?.Dispose();
+                }
+            }));
         });
     }
 
@@ -173,7 +183,7 @@ public class RibbonController : IRibbonExtensibility
         {
             var config = Current();
             using var form = new SettingsForm(config, name => ConfigLoader.IsLocked(_central, name));
-            if (form.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            if (form.ShowDialog(OwnerOf(control)) == System.Windows.Forms.DialogResult.OK)
             {
                 Invalidate();
             }
@@ -199,6 +209,7 @@ public class RibbonController : IRibbonExtensibility
         {
             _config = ConfigLoader.Resolve(_central);
             _loadedAt = now;
+            LogWarnings(_config.Warnings);
         }
 
         return _config;
@@ -218,7 +229,7 @@ public class RibbonController : IRibbonExtensibility
                 _central = central;
                 if (!central.HasSameContent(previous))
                 {
-                    _ui?.Post(_ => Invalidate(), null);
+                    PostInvalidate();
                 }
             }
         }
@@ -234,28 +245,72 @@ public class RibbonController : IRibbonExtensibility
         return VersionPolicy.IsBlocked(InstalledVersion, _central.MinVersion);
     }
 
-    private void Invalidate()
+    /// <summary>Logs the full warning list once per change.</summary>
+    private void LogWarnings(IReadOnlyList<string> warnings)
     {
-        _loadedAt = DateTime.MinValue;
-        foreach (var ribbon in _ribbons)
+        var joined = string.Join(Environment.NewLine, warnings);
+        if (joined != _loggedWarnings)
         {
-            ribbon.Invalidate();
+            _loggedWarnings = joined;
+            if (joined.Length > 0)
+            {
+                Log.Info("Config", "Configuration problems:" + Environment.NewLine + joined);
+            }
         }
     }
 
+    private void PostInvalidate() => _ui?.Post(_ => Guard("Invalidate", Invalidate), null);
+
+    /// <summary>Refreshes every loaded ribbon; a ribbon that fails (its window closed) is dropped.</summary>
+    private void Invalidate()
+    {
+        _loadedAt = DateTime.MinValue;
+        foreach (var ribbon in _ribbons.ToArray())
+        {
+            try
+            {
+                ribbon.Invalidate();
+            }
+            catch (Exception e)
+            {
+                Log.Error("Invalidate", e);
+                _ribbons.Remove(ribbon);
+            }
+        }
+    }
+
+    /// <summary>Shows the update hint only for an MSI that matches update.MsiSha256, so msi.dll never opens another file.</summary>
     private void CheckForUpdate()
     {
-        var msiPath = _central.MsiPath;
-        if (string.IsNullOrWhiteSpace(msiPath))
+        var central = _central;
+        if (string.IsNullOrWhiteSpace(central.MsiPath) || string.IsNullOrWhiteSpace(central.MsiSha256))
         {
             return;
         }
 
-        var msiVersion = MsiPackage.ReadProductVersion(Environment.ExpandEnvironmentVariables(msiPath));
-        _updateAvailable = VersionPolicy.IsUpdateAvailable(InstalledVersion, msiVersion);
+        var msiPath = Environment.ExpandEnvironmentVariables(central.MsiPath);
+        if (!MsiHash.IsAllowed(central.MsiSha256, MsiHash.Compute(msiPath)))
+        {
+            return;
+        }
+
+        _updateAvailable = VersionPolicy.IsUpdateAvailable(InstalledVersion, MsiPackage.ReadProductVersion(msiPath));
         if (_updateAvailable)
         {
-            _ui?.Post(_ => Invalidate(), null);
+            PostInvalidate();
+        }
+    }
+
+    /// <summary>The Outlook window of the ribbon, as owner for dialogs, or null.</summary>
+    private static IWin32Window? OwnerOf(IRibbonControl control)
+    {
+        try
+        {
+            return control.Context is IOleWindow window ? new WindowHandle(window.GetWindow()) : null;
+        }
+        catch (Exception e) when (e is COMException || e is InvalidCastException)
+        {
+            return null;
         }
     }
 
@@ -303,5 +358,22 @@ public class RibbonController : IRibbonExtensibility
         {
             Log.Error(callback, e);
         }
+    }
+
+    private sealed class WindowHandle : IWin32Window
+    {
+        public WindowHandle(IntPtr handle) => Handle = handle;
+
+        public IntPtr Handle { get; }
+    }
+
+    [ComImport]
+    [Guid("00000114-0000-0000-C000-000000000046")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IOleWindow
+    {
+        IntPtr GetWindow();
+
+        void ContextSensitiveHelp(bool enterMode);
     }
 }

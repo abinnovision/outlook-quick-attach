@@ -1,6 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
+using QuickAttach.Core;
 
 namespace QuickAttach;
 
@@ -13,7 +14,15 @@ public sealed class Connect : RibbonController, IDTExtensibility2
     public void OnConnection(object application, int connectMode, object addInInst, ref Array custom)
     {
         // Runs on the Outlook UI thread; keep it short and move the rest to the background.
-        Start(new WindowsFormsSynchronizationContext());
+        // An exception reaching Outlook would disable the add-in.
+        try
+        {
+            Start(new WindowsFormsSynchronizationContext());
+        }
+        catch (Exception e)
+        {
+            Log.Error("OnConnection", e);
+        }
     }
 
     public void OnDisconnection(int removeMode, ref Array custom) => Stop();

@@ -10,8 +10,8 @@ namespace QuickAttach;
 
 /// <summary>
 /// Signals configuration changes: polls the central config.json every 60 s (SMB change events are unreliable)
-/// and waits for changes of the HKCU keys on a background thread. The parent key is watched because
-/// the QuickAttach keys may not exist yet.
+/// and waits for changes of the HKCU keys on a background thread. The parent key is watched, and created when
+/// missing, because the QuickAttach keys may not exist yet.
 /// </summary>
 internal sealed class ConfigWatcher : IDisposable
 {
@@ -21,20 +21,24 @@ internal sealed class ConfigWatcher : IDisposable
 
     private readonly Action _changed;
     private readonly Timer _timer;
+    private readonly ManualResetEvent _stop = new(false);
     private DateTime? _lastWrite;
     private volatile bool _disposed;
 
     public ConfigWatcher(Action changed)
     {
         _changed = changed;
-        // The first poll runs at once on the timer thread and only records the baseline.
-        _timer = new Timer(_ => Poll(), null, TimeSpan.Zero, PollInterval);
+        // One-shot timer, re-armed after each poll so polls never overlap. The first poll runs at once
+        // on the timer thread and only records the baseline.
+        _timer = new Timer(_ => Poll(), null, Timeout.Infinite, Timeout.Infinite);
+        _timer.Change(TimeSpan.Zero, Timeout.InfiniteTimeSpan);
         new Thread(() => WatchKey(@"Software\abigroup")) { IsBackground = true, Name = "QuickAttach registry watcher" }.Start();
     }
 
     public void Dispose()
     {
         _disposed = true;
+        _stop.Set();
         _timer.Dispose();
     }
 
@@ -54,16 +58,39 @@ internal sealed class ConfigWatcher : IDisposable
         {
             Log.Error("ConfigWatcher", e);
         }
+        finally
+        {
+            Rearm();
+        }
+    }
+
+    private void Rearm()
+    {
+        try
+        {
+            if (!_disposed)
+            {
+                _timer.Change(PollInterval, Timeout.InfiniteTimeSpan);
+            }
+        }
+        catch (ObjectDisposedException)
+        {
+            // Disposed between the check and the call.
+        }
     }
 
     private void WatchKey(string subKey)
     {
         try
         {
-            using var key = Registry.CurrentUser.OpenSubKey(subKey);
-            while (key != null && !_disposed)
+            using var key = Registry.CurrentUser.CreateSubKey(subKey);
+            using var changed = new AutoResetEvent(false);
+            var handles = new WaitHandle[] { changed, _stop };
+            while (!_disposed)
             {
-                if (RegNotifyChangeKeyValue(key.Handle, true, NotifyChangeName | NotifyChangeLastSet, IntPtr.Zero, false) != 0 || _disposed)
+                // Asynchronous, so Dispose can end the wait through the stop event.
+                if (RegNotifyChangeKeyValue(key.Handle, true, NotifyChangeName | NotifyChangeLastSet, changed.SafeWaitHandle, true) != 0
+                    || WaitHandle.WaitAny(handles) != 0)
                 {
                     return;
                 }
@@ -84,5 +111,5 @@ internal sealed class ConfigWatcher : IDisposable
     }
 
     [DllImport("advapi32.dll")]
-    private static extern int RegNotifyChangeKeyValue(SafeRegistryHandle key, bool watchSubtree, int notifyFilter, IntPtr eventHandle, bool asynchronous);
+    private static extern int RegNotifyChangeKeyValue(SafeRegistryHandle key, bool watchSubtree, int notifyFilter, SafeWaitHandle eventHandle, bool asynchronous);
 }

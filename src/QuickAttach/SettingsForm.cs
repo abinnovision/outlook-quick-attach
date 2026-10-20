@@ -74,27 +74,37 @@ internal sealed class SettingsForm : Form
         }
     }
 
+    /// <summary>Writes the values; on failure the dialog stays open.</summary>
     private void Save()
     {
-        using var key = Registry.CurrentUser.CreateSubKey(RegistrySource.UserKey);
-        if (!_isLocked("FolderPath"))
+        try
         {
-            key.SetValue("FolderPath", _folderPath.Text, RegistryValueKind.ExpandString);
-        }
+            using var key = Registry.CurrentUser.CreateSubKey(RegistrySource.UserKey);
+            if (!_isLocked("FolderPath"))
+            {
+                key.SetValue("FolderPath", _folderPath.Text, RegistryValueKind.ExpandString);
+            }
 
-        if (!_isLocked("GroupLabel"))
-        {
-            key.SetValue("GroupLabel", _groupLabel.Text);
-        }
+            if (!_isLocked("GroupLabel"))
+            {
+                key.SetValue("GroupLabel", _groupLabel.Text);
+            }
 
-        if (!_isLocked("GalleryLabel"))
-        {
-            key.SetValue("GalleryLabel", _galleryLabel.Text);
-        }
+            if (!_isLocked("GalleryLabel"))
+            {
+                key.SetValue("GalleryLabel", _galleryLabel.Text);
+            }
 
-        if (!_isLocked("MaxItems"))
+            if (!_isLocked("MaxItems"))
+            {
+                key.SetValue("MaxItems", (int)_maxItems.Value, RegistryValueKind.DWord);
+            }
+        }
+        catch (Exception e)
         {
-            key.SetValue("MaxItems", (int)_maxItems.Value, RegistryValueKind.DWord);
+            Log.Error("Settings", e);
+            MessageBox.Show(this, Strings.SettingsSaveFailed, Strings.AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            DialogResult = DialogResult.None;
         }
     }
 }
